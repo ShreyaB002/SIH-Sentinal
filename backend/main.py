@@ -25,6 +25,7 @@ from backend.routers.video import router as video_router
 from backend.routers.ws import router as ws_router
 from backend.routers.events import router as events_router
 from backend.routers.watchlist import router as watchlist_router
+from backend.routers.session import router as session_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,17 +57,18 @@ app = FastAPI(
     title=APP_TITLE,
     version=APP_VERSION,
     description=(
-        "Phase 4 Complete: YOLO detection + ByteTrack + Weapons (YOLO-World-L) + "
+        "Phase 4 Complete: YOLO detection + ByteTrack + Weapons (YOLO-World) + "
         "Virtual Fence + Activity Analysis + Face Recognition (InsightFace) + "
-        "ANPR (PaddleOCR) + Night Enhancement + WebSocket alerts + SQLite logging."
+        "ANPR (PaddleOCR) + Night Enhancement + Multi-Device Session Sync + WebSocket alerts."
     ),
     lifespan=lifespan,
 )
 
 # API routes
-app.include_router(video_router,    prefix="/api",  tags=["video"])
-app.include_router(events_router,   prefix="/api",  tags=["events"])
+app.include_router(video_router,     prefix="/api", tags=["video"])
+app.include_router(events_router,    prefix="/api", tags=["events"])
 app.include_router(watchlist_router,                tags=["watchlist"])
+app.include_router(session_router,                  tags=["session"])
 app.include_router(ws_router,                       tags=["alerts"])
 
 # Serve frontend

@@ -29,15 +29,19 @@ class StreamManager:
         self._database: Optional[Database] = None
         self._face_recognizer = None
         self._watchlist_db = None
+        self._session_manager = None
 
     def start_all(self, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
+        from backend.core.session_manager import SessionManager
+        self._session_manager = SessionManager(loop=loop)
+
         if AI_ENABLED:
             try:
                 from backend.core.event_manager import EventManager
                 self._database = Database(DB_PATH)
                 self._event_manager = EventManager(database=self._database, loop=loop)
 
-                # Face recognizer (shared ? one watchlist across all cameras)
+                # Face recognizer (shared — one watchlist across all cameras)
                 from backend.core.face_recognition import FaceRecognizer
                 self._face_recognizer = FaceRecognizer(device="cuda")
 
@@ -110,3 +114,7 @@ class StreamManager:
     @property
     def event_manager(self):
         return self._event_manager
+
+    @property
+    def session_manager(self):
+        return self._session_manager

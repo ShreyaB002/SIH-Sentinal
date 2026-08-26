@@ -19,6 +19,7 @@
     </div>
     <div class="header__meta">
       <span class="header__ws-status" id="wsStatus" title="AI Alert Stream">&#9679; CONNECTING</span>
+      <span id="sessionSyncBadge" style="font-size:11px;font-weight:600;color:var(--text-sec);letter-spacing:1px;padding:3px 8px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid var(--border);">&#128101; 1 DEVICE SYNCED</span>
       <span class="header__time" id="clock">--:--:--</span>
       <span class="header__badge">PHASE 4 &bull; FULL AI SUITE</span>
       <button class="btn-toggle-log" id="btnToggleWatchlist" title="Manage Watchlist" style="border-color:var(--green);color:var(--green)">&#128100; WATCHLIST</button>
@@ -103,6 +104,7 @@
   <script src="js/grid.js"></script>
   <script src="js/eventlog.js"></script>
   <script src="js/watchlist.js"></script>
+  <script src="js/session.js"></script>
   <script src="js/websocket.js"></script>
 </body>
 </html>

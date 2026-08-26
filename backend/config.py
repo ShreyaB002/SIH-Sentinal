@@ -29,43 +29,45 @@ DB_PATH: Path = PROJECT_ROOT / "data" / "events.db"
 
 CAMERAS: dict[str, dict] = {
     "cam_01": {
-        "name": "Camera 01",
-        "source": "http://192.168.1.10:8080/video",
-        "type": "rtsp",
+        "name": "BOP Sector 1 (Perimeter North)",
+        "source": "data/videos/test_cctv.mp4",
+        "type": "file",
     },
     "cam_02": {
-        "name": "Camera 02",
-        "source": "http://192.168.1.11:8080/video",
-        "type": "rtsp",
+        "name": "BOP Sector 2 (Border Road)",
+        "source": "data/videos/test_cctv.mp4",
+        "type": "file",
     },
     "cam_03": {
-        "name": "Camera 03",
+        "name": "Check Post Alpha (Live IP Cam)",
         "source": "http://192.168.1.6:8080/video",
         "type": "rtsp",
     },
     "cam_04": {
-        "name": "Camera 04",
-        "source": "http://192.168.1.9:8080/video",
-        "type": "rtsp",
+        "name": "BOP Sector 4 (Fence Line)",
+        "source": "data/videos/test_cctv.mp4",
+        "type": "file",
     },
     "cam_05": {
-        "name": "Camera 05",
-        "source": "http://192.168.1.10:8080/video",
-        "type": "rtsp",
+        "name": "Check Post Bravo (Ingress)",
+        "source": "data/videos/test_cctv.mp4",
+        "type": "file",
     },
     "cam_06": {
-        "name": "Camera 06",
-        "source": "http://192.168.1.11:8080/video",
-        "type": "rtsp",
+        "name": "BOP Sector 6 (Watchtower)",
+        "source": "data/videos/test_cctv.mp4",
+        "type": "file",
     },
 }
 
 # ---------------------------------------------------------------------------
-# Streaming parameters
+# Streaming & Frame Compression Parameters
 # ---------------------------------------------------------------------------
 
 MJPEG_FPS: int = 25
-JPEG_QUALITY: int = 80
+STREAM_WIDTH: int = 640
+STREAM_HEIGHT: int = 360
+JPEG_QUALITY: int = 65                # Optimized JPEG compression for low latency
 RTSP_RECONNECT_DELAY: float = 3.0
 
 # ---------------------------------------------------------------------------
@@ -179,13 +181,13 @@ EVENT_COOLDOWN: float = 5.0
 # ---------------------------------------------------------------------------
 
 WEAPONS_ENABLED: bool = True
-WEAPONS_MODEL: str = "yolov8l-worldv2.pt"  # large = best accuracy on GPU
+WEAPONS_MODEL: str = "yolov8s-worldv2.pt"  # Fast, highly accurate on RTX 2050
 WEAPONS_CLASSES: list[str] = [
-    "handgun", "pistol", "revolver",
+    "gun", "firearm", "pistol", "handgun", "revolver",
     "rifle", "assault rifle", "shotgun",
-    "knife", "machete", "blade", "grenade",
+    "knife", "machete", "blade", "weapon", "grenade",
 ]
-WEAPONS_CONFIDENCE: float = 0.28  # lower than YOLO — open-vocab models score lower
+WEAPONS_CONFIDENCE: float = 0.15  # Optimized for zero-shot text-prompted detection
 
 # ---------------------------------------------------------------------------
 # Suspicious Activity  (Phase 3)

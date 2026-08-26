@@ -39,39 +39,47 @@ router = APIRouter()
 
 @router.websocket("/ws/alerts")
 async def alerts_websocket(websocket: WebSocket):
-    """Stream real-time AI detection events to the browser."""
+    """Stream real-time AI detection alerts and multi-device session sync events."""
     await websocket.accept()
 
     manager = websocket.app.state.stream_manager
     event_manager = manager.event_manager
+    session_manager = manager.session_manager
 
-    if event_manager is None:
-        # AI is disabled ? send a single info message and hold the connection
-        await websocket.send_text(
-            '{"event_type":"INFO","message":"AI pipeline is disabled (AI_ENABLED=False)"}'
-        )
-        try:
-            while True:
-                await asyncio.sleep(30)
-        except WebSocketDisconnect:
-            return
+    session_id = websocket.query_params.get("session_id")
+    event_queue = event_manager.subscribe() if event_manager else None
+    session_queue = session_manager.register_queue(session_id) if session_manager and session_id else None
 
-    # Subscribe to the event stream
-    queue = event_manager.subscribe()
-    logger.info("WebSocket client connected to /ws/alerts.")
+    logger.info("WebSocket connected to /ws/alerts (session=%s).", session_id or "anonymous")
+
+    async def get_next_message():
+        tasks = []
+        if event_queue:
+            tasks.append(asyncio.create_task(event_queue.get()))
+        if session_queue:
+            tasks.append(asyncio.create_task(session_queue.get()))
+        if not tasks:
+            await asyncio.sleep(20)
+            return '{"event_type":"PING"}'
+
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED, timeout=20.0)
+        for p in pending:
+            p.cancel()
+        if done:
+            return list(done)[0].result()
+        return '{"event_type":"PING"}'
 
     try:
         while True:
-            # Wait for next event from the queue (with a periodic ping)
-            try:
-                payload = await asyncio.wait_for(queue.get(), timeout=20.0)
-                await websocket.send_text(payload)
-            except asyncio.TimeoutError:
-                # Send a keep-alive ping so the browser does not close the connection
-                await websocket.send_text('{"event_type":"PING"}')
+            payload = await get_next_message()
+            await websocket.send_text(payload)
     except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected from /ws/alerts.")
+        logger.info("WebSocket client disconnected from /ws/alerts (session=%s).", session_id or "anonymous")
     except Exception as exc:
         logger.warning("WebSocket error: %s", exc)
     finally:
-        event_manager.unsubscribe(queue)
+        if event_manager and event_queue:
+            event_manager.unsubscribe(event_queue)
+        if session_manager and session_id:
+            session_manager.terminate_session(session_id)
+

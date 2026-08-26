@@ -52,6 +52,14 @@
         return;
       }
 
+      // Handle multi-device synchronization events
+      if (event && event.sync_event) {
+        if (typeof window.handleSyncEvent === 'function') {
+          window.handleSyncEvent(event.sync_event, event.data);
+        }
+        return;
+      }
+
       // Skip keep-alive pings and info messages
       if (!event || event.event_type === 'PING' || event.event_type === 'INFO') return;
 
