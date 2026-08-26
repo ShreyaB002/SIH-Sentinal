@@ -30,12 +30,12 @@ DB_PATH: Path = PROJECT_ROOT / "data" / "events.db"
 CAMERAS: dict[str, dict] = {
     "cam_01": {
         "name": "Camera 01",
-        "source": "http://192.0.0.4:8080/video",
+        "source": "http://192.168.1.10:8080/video",
         "type": "rtsp",
     },
     "cam_02": {
         "name": "Camera 02",
-        "source": "http://192.168.1.8:8080/video",
+        "source": "http://192.168.1.11:8080/video",
         "type": "rtsp",
     },
     "cam_03": {
@@ -207,7 +207,7 @@ APP_VERSION: str = "3.0.0-phase3"
 # Night Detection  (Phase 4)
 # ---------------------------------------------------------------------------
 
-NIGHT_BRIGHTNESS_THRESHOLD: float = 80.0  # LAB-L mean below this = night
+NIGHT_BRIGHTNESS_THRESHOLD: float = 38.0  # LAB-L mean below 38 = dark/night mode
 NIGHT_CLAHE_CLIP: float = 3.0
 NIGHT_DENOISE: bool = True
 

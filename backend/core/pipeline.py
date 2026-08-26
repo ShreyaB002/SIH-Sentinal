@@ -32,6 +32,9 @@ from backend.config import (
     DETECT_EVERY_N_FRAMES,
     LABEL_OVERRIDES,
     LOITER_SECONDS,
+    NIGHT_BRIGHTNESS_THRESHOLD,
+    NIGHT_CLAHE_CLIP,
+    NIGHT_DENOISE,
     RUNNING_SPEED,
     WEAPONS_CLASSES,
     WEAPONS_CONFIDENCE,
@@ -80,8 +83,12 @@ class FramePipeline:
         self._frame_count = 0
         self._device = "cuda"
 
-        # Night enhancer (pure OpenCV, no model needed)
-        self._night = NightEnhancer()
+        # Night enhancer with calibrated thresholds
+        self._night = NightEnhancer(
+            brightness_threshold=NIGHT_BRIGHTNESS_THRESHOLD,
+            clip_limit=NIGHT_CLAHE_CLIP,
+            denoise=NIGHT_DENOISE,
+        )
 
         # Per-pipeline YOLO tracker
         self._tracker_model = None
@@ -213,11 +220,19 @@ class FramePipeline:
                 self._tracker_model.to(self._device)
                 logger.info("[%s] Tracker model loaded on %s.", self.camera_id, self._device)
 
-            results = self._tracker_model.track(
-                source=frame, conf=YOLO_CONFIDENCE,
-                classes=YOLO_CLASSES, device=self._device,
-                persist=True, tracker="bytetrack.yaml", verbose=False,
-            )
+            try:
+                results = self._tracker_model.track(
+                    source=frame, conf=YOLO_CONFIDENCE,
+                    classes=YOLO_CLASSES, device=self._device,
+                    persist=True, tracker="bytetrack.yaml", verbose=False,
+                )
+            except Exception as trk_err:
+                # Fallback to botsort if bytetrack has solver issues
+                results = self._tracker_model.track(
+                    source=frame, conf=YOLO_CONFIDENCE,
+                    classes=YOLO_CLASSES, device=self._device,
+                    persist=True, tracker="botsort.yaml", verbose=False,
+                )
             return Tracker.from_track_results(results, LABEL_OVERRIDES)
         except Exception as exc:
             logger.warning("[%s] Tracking error: %s", self.camera_id, exc)
