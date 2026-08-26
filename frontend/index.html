@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IBVAP ? Border Surveillance Dashboard</title>
+  <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+<body>
+
+  <!-- ================================================================ -->
+  <!-- HEADER                                                            -->
+  <!-- ================================================================ -->
+  <header class="header">
+    <div class="header__brand">
+      <span class="header__logo">&#9726;</span>
+      <span class="header__title">IBVAP</span>
+      <span class="header__subtitle">Intelligent Border Video Analytics Platform</span>
+    </div>
+    <div class="header__meta">
+      <span class="header__ws-status" id="wsStatus" title="AI Alert Stream">&#9679; CONNECTING</span>
+      <span class="header__time" id="clock">--:--:--</span>
+      <span class="header__badge">PHASE 2 &bull; AI ACTIVE</span>
+      <button class="btn-toggle-log" id="btnToggleLog" title="Toggle event log">&#9776; EVENTS</button>
+    </div>
+  </header>
+
+  <!-- ================================================================ -->
+  <!-- MAIN CONTENT                                                      -->
+  <!-- ================================================================ -->
+  <main class="main" id="mainContent">
+
+    <!-- 6-camera grid (default view) -->
+    <section class="grid-view" id="gridView">
+      <div class="camera-grid" id="cameraGrid">
+        <!-- Tiles injected by grid.js -->
+      </div>
+    </section>
+
+    <!-- Expanded single-camera view -->
+    <section class="expand-view hidden" id="expandView">
+      <div class="expand-header">
+        <button class="btn-back" id="btnBack" title="Back to grid">
+          &#8592; Back to Grid
+        </button>
+        <span class="expand-title" id="expandTitle">Camera</span>
+        <span class="expand-status" id="expandStatus"></span>
+      </div>
+      <div class="expand-feed">
+        <img class="expand-img" id="expandImg" src="" alt="Camera feed" />
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================================================================ -->
+  <!-- EVENT LOG SIDEBAR                                                 -->
+  <!-- ================================================================ -->
+  <aside class="sidebar hidden" id="sidebar">
+    <div class="sidebar__header">
+      <span class="sidebar__title">&#9888; ALERT LOG</span>
+      <button class="sidebar__clear" id="btnClearLog" title="Clear log">&#10005;</button>
+    </div>
+    <div class="sidebar__body" id="eventLogBody">
+      <div class="event-log-empty" id="eventLogEmpty">
+        No events yet. AI is watching...
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================================================================ -->
+  <!-- FOOTER                                                            -->
+  <!-- ================================================================ -->
+  <footer class="footer">
+    <span>SIH Problem: AI-Based Intelligent Video Analytics Platform for Border Surveillance</span>
+    <span id="footerEventCount">Events: 0</span>
+  </footer>
+
+  <script src="js/grid.js"></script>
+  <script src="js/eventlog.js"></script>
+  <script src="js/websocket.js"></script>
+</body>
+</html>
