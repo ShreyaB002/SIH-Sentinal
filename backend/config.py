@@ -30,7 +30,7 @@ DB_PATH: Path = PROJECT_ROOT / "data" / "events.db"
 CAMERAS: dict[str, dict] = {
     "cam_01": {
         "name": "Camera 01",
-        "source": "http://192.168.1.7:8080/video",
+        "source": "http://192.0.0.4:8080/video",
         "type": "rtsp",
     },
     "cam_02": {
@@ -175,8 +175,61 @@ ZONES: dict[str, list[dict]] = {
 EVENT_COOLDOWN: float = 5.0
 
 # ---------------------------------------------------------------------------
+# Weapons Detection  (Phase 3)
+# ---------------------------------------------------------------------------
+
+WEAPONS_ENABLED: bool = True
+WEAPONS_MODEL: str = "yolov8l-worldv2.pt"  # large = best accuracy on GPU
+WEAPONS_CLASSES: list[str] = [
+    "handgun", "pistol", "revolver",
+    "rifle", "assault rifle", "shotgun",
+    "knife", "machete", "blade", "grenade",
+]
+WEAPONS_CONFIDENCE: float = 0.28  # lower than YOLO — open-vocab models score lower
+
+# ---------------------------------------------------------------------------
+# Suspicious Activity  (Phase 3)
+# ---------------------------------------------------------------------------
+
+LOITER_SECONDS: float = 5.0      # demo-friendly; use 30-60s in production
+RUNNING_SPEED: float = 22.0      # centroid px/frame above this = running
+CROWD_THRESHOLD: int = 3         # persons in zone at once before CROWD fires
+ACTIVITY_COOLDOWN: float = 15.0  # seconds between repeated activity alerts
+
+# ---------------------------------------------------------------------------
 # API / Server
 # ---------------------------------------------------------------------------
 
-APP_TITLE: str = "IBVAP ? Intelligent Border Video Analytics Platform"
-APP_VERSION: str = "2.0.0-phase2"
+APP_TITLE: str = "IBVAP — Intelligent Border Video Analytics Platform"
+APP_VERSION: str = "3.0.0-phase3"
+
+# ---------------------------------------------------------------------------
+# Night Detection  (Phase 4)
+# ---------------------------------------------------------------------------
+
+NIGHT_BRIGHTNESS_THRESHOLD: float = 80.0  # LAB-L mean below this = night
+NIGHT_CLAHE_CLIP: float = 3.0
+NIGHT_DENOISE: bool = True
+
+# ---------------------------------------------------------------------------
+# Face Recognition  (Phase 4)
+# ---------------------------------------------------------------------------
+
+FRS_ENABLED: bool = True
+FRS_MODEL: str = "buffalo_l"               # InsightFace large model
+FRS_DET_SIZE: tuple = (640, 640)
+FRS_MATCH_THRESHOLD: float = 0.40         # cosine similarity threshold
+
+# ---------------------------------------------------------------------------
+# ANPR  (Phase 4)
+# ---------------------------------------------------------------------------
+
+ANPR_ENABLED: bool = True
+ANPR_MIN_CONFIDENCE: float = 0.40         # minimum OCR confidence to accept plate
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+WATCHLIST_DB_PATH = PROJECT_ROOT / "data" / "watchlist.db"
+WATCHLIST_IMAGE_DIR = PROJECT_ROOT / "data" / "watchlist_images"

@@ -5,4 +5,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .mypy_cache/
-.git/
+*.pt
+*.part
+*.db
+pip_cache/
+data/watchlist_images/
+data/events.db
+data/watchlist.db
