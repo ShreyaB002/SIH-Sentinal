@@ -40,7 +40,7 @@ import numpy as np
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from backend.config import JPEG_QUALITY, MJPEG_FPS
+from backend.config import JPEG_QUALITY, MJPEG_FPS, STREAM_WIDTH, STREAM_HEIGHT
 from backend.core.camera_stream import CameraStatus
 
 logger = logging.getLogger(__name__)
@@ -54,15 +54,14 @@ router = APIRouter()
 _FRAME_INTERVAL: float = 1.0 / MJPEG_FPS
 
 
-def _make_offline_frame(width: int = 640, height: int = 360) -> bytes:
+def _make_offline_frame(width: int = STREAM_WIDTH, height: int = STREAM_HEIGHT) -> bytes:
     """Generate a placeholder JPEG image displayed when a camera is offline."""
     img = np.zeros((height, width, 3), dtype=np.uint8)
-    # Dark grey background
     img[:] = (30, 30, 30)
 
     text = "OFFLINE"
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 1.5
+    font_scale = 1.2
     thickness = 2
     (tw, th), _ = cv2.getTextSize(text, font, font_scale, thickness)
     x = (width - tw) // 2
@@ -76,8 +75,14 @@ def _make_offline_frame(width: int = 640, height: int = 360) -> bytes:
 _OFFLINE_JPEG: bytes = _make_offline_frame()
 
 
-def _encode_frame(frame: np.ndarray) -> bytes:
-    """JPEG-encode an OpenCV BGR frame."""
+def _encode_frame(frame: np.ndarray, target_w: int = STREAM_WIDTH, target_h: int = STREAM_HEIGHT) -> bytes:
+    """Compress and JPEG-encode an OpenCV BGR frame for high-speed streaming."""
+    h, w = frame.shape[:2]
+    # Resize down if frame is larger than stream target
+    if w > target_w or h > target_h:
+        frame = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
+
+    # Encode with optimized quality compression
     _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
     return buf.tobytes()
 

@@ -186,6 +186,10 @@ function expandCamera(cameraId) {
 
   document.getElementById('gridView').classList.add('hidden');
   document.getElementById('expandView').classList.remove('hidden');
+
+  if (typeof window.broadcastDeviceAction === 'function') {
+    window.broadcastDeviceAction('EXPAND_CAMERA', { camera_id: cameraId });
+  }
 }
 
 function collapseToGrid() {
@@ -194,7 +198,14 @@ function collapseToGrid() {
   if (expandImg) expandImg.src = '';
   document.getElementById('expandView').classList.add('hidden');
   document.getElementById('gridView').classList.remove('hidden');
+
+  if (typeof window.broadcastDeviceAction === 'function') {
+    window.broadcastDeviceAction('COLLAPSE_GRID');
+  }
 }
+
+window.expandCamera = expandCamera;
+window.collapseToGrid = collapseToGrid;
 
 document.getElementById('btnBack').addEventListener('click', collapseToGrid);
 
