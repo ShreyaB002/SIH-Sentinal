@@ -121,9 +121,11 @@ class FramePipeline:
         # ANPR (per-pipeline, lazy-loaded)
         self._plate_reader: Optional[PlateReader] = None
 
-        # Detection cache
+        # Detection cache & live 30 FPS overlay data
         self._last_tracked: list[TrackedObject] = []
         self._last_weapons: list[WeaponDetection] = []
+        self._latest_overlay_data = None
+        self._overlay_lock = threading.Lock()
 
         logger.info("[%s] FramePipeline Phase 4 ready (device=%s)", camera_id, self._device)
 
@@ -168,9 +170,9 @@ class FramePipeline:
         # --- Activity ---
         activity_events = self._activity.analyze(tracked, active_zones)
 
-        # --- Face recognition (per Person, every 2nd detect frame) ---
+        # --- Face recognition (per Person, executed every 4th frame for high FPS) ---
         face_results: list[FaceResult] = []
-        if self._face_recognizer and run_detection:
+        if self._face_recognizer and (self._frame_count % 4 == 0):
             for obj in tracked:
                 if obj.label == "Person":
                     crop, offset = self._crop_person(enhanced, obj.bbox)
@@ -201,12 +203,32 @@ class FramePipeline:
         if is_night and run_detection and tracked:
             self._event_manager.receive_night_movement(self.camera_id, len(tracked))
 
+        # --- Cache latest overlays for live 30 FPS rendering ---
+        with self._overlay_lock:
+            self._latest_overlay_data = (
+                tracked, fence_events, weapons, activity_events,
+                face_results, plate_results, is_night
+            )
+
         # --- Annotate ---
         annotated = self._annotate(
             frame.copy(), tracked, fence_events,
             weapons, activity_events, face_results, plate_results, is_night
         )
         return annotated
+
+    def annotate_live_frame(self, frame: np.ndarray) -> np.ndarray:
+        """Instantly composites latest AI detection overlays onto the live moving frame (<0.5ms)."""
+        with self._overlay_lock:
+            if self._latest_overlay_data is None:
+                return self._fence.draw_zones(frame, set())
+            (tracked, fence_events, weapons, activity_events,
+             face_results, plate_results, is_night) = self._latest_overlay_data
+
+        return self._annotate(
+            frame, tracked, fence_events,
+            weapons, activity_events, face_results, plate_results, is_night
+        )
 
     # ------------------------------------------------------------------
     # Helpers

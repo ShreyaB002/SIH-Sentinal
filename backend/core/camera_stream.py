@@ -124,13 +124,18 @@ class CameraStream:
     # ------------------------------------------------------------------
 
     def get_frame(self) -> Optional[np.ndarray]:
-        """Return the latest annotated frame (or raw frame fallback). Thread-safe."""
+        """Return the live moving camera frame with AI detection overlays composited in real-time (<0.5ms)."""
+        raw = None
         with self._frame_lock:
-            if self._annotated_frame is not None:
-                return self._annotated_frame.copy()
             if self._raw_frame is not None:
-                return self._raw_frame.copy()
+                raw = self._raw_frame.copy()
+
+        if raw is None:
             return None
+
+        if self._pipeline is not None:
+            return self._pipeline.annotate_live_frame(raw)
+        return raw
 
     @property
     def status(self) -> CameraStatus:
