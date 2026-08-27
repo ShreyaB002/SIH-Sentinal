@@ -40,7 +40,7 @@ CAMERAS: dict[str, dict] = {
     },
     "cam_03": {
         "name": "Check Post Alpha (Live IP Cam)",
-        "source": "http://192.168.1.6:8080/video",
+        "source": "http://172.17.10.90:8080/video",
         "type": "rtsp",
     },
     "cam_04": {
