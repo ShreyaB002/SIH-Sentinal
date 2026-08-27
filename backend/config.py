@@ -29,8 +29,8 @@ DB_PATH: Path = PROJECT_ROOT / "data" / "events.db"
 
 CAMERAS: dict[str, dict] = {
     "cam_01": {
-        "name": "Live Webcam Feed (Device 0)",
-        "source": "0",
+        "name": "Live Webcam Feed (Device 1)",
+        "source": "1",
         "type": "usb",
     },
     "cam_02": {
