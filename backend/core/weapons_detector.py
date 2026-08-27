@@ -74,21 +74,26 @@ class WeaponsDetector:
     _load_lock = threading.Lock()
 
     def _load_model(self) -> None:
-        """Lazy-load the YOLO-World model with thread lock protection."""
+        """Lazy-load the YOLO weapon model with thread lock protection."""
         with self._load_lock:
             if self._model is not None:
                 return
             try:
                 from ultralytics import YOLO
                 self._model = YOLO(self._model_name)
-                self._model.set_classes(self._classes)
+                # If YOLO-World open-vocabulary model, set text classes
+                if hasattr(self._model, "set_classes") and "world" in str(self._model_name).lower():
+                    self._model.set_classes(self._classes)
+                    self._names = None
+                else:
+                    self._names = getattr(self._model, "names", {0: "Gun", 1: "Explosive", 2: "Grenade", 3: "Knife"})
                 self._model.to(self._device)
                 logger.info(
-                    "YOLO-World weapons model loaded on %s: %s | classes: %s",
-                    self._device, self._model_name, self._classes,
+                    "Weapons detection model loaded on %s: %s (classes: %s)",
+                    self._device, self._model_name, self._names or self._classes,
                 )
             except Exception as exc:
-                logger.error("Failed to load YOLO-World model: %s", exc)
+                logger.error("Failed to load weapon model: %s", exc)
                 raise
 
     def detect(self, frame: np.ndarray) -> list[WeaponDetection]:
@@ -131,7 +136,13 @@ class WeaponsDetector:
                 cls_id = int(box.cls[0])
                 conf = float(box.conf[0])
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                label = self._classes[cls_id] if cls_id < len(self._classes) else "weapon"
+                if self._names and isinstance(self._names, dict):
+                    label = self._names.get(cls_id, "Weapon")
+                elif cls_id < len(self._classes):
+                    label = self._classes[cls_id]
+                else:
+                    label = "Weapon"
+
                 detections.append(
                     WeaponDetection(label=label, confidence=conf, bbox=(x1, y1, x2, y2))
                 )

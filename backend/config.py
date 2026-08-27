@@ -181,13 +181,11 @@ EVENT_COOLDOWN: float = 5.0
 # ---------------------------------------------------------------------------
 
 WEAPONS_ENABLED: bool = True
-WEAPONS_MODEL: str = "yolov8s-worldv2.pt"  # Fast, highly accurate on RTX 2050
+WEAPONS_MODEL: str = "models/threat_detector.pt"  # Fine-tuned Threat/Weapon Detector (Gun, Knife, Explosive, Grenade)
 WEAPONS_CLASSES: list[str] = [
-    "gun", "firearm", "pistol", "handgun", "revolver",
-    "rifle", "assault rifle", "shotgun",
-    "knife", "machete", "blade", "weapon", "grenade",
+    "Gun", "knife", "grenade", "explosion",
 ]
-WEAPONS_CONFIDENCE: float = 0.15  # Optimized for zero-shot text-prompted detection
+WEAPONS_CONFIDENCE: float = 0.30  # Calibrated for specialized threat model
 
 # ---------------------------------------------------------------------------
 # Suspicious Activity  (Phase 3)
