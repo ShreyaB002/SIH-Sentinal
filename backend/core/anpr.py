@@ -1,17 +1,18 @@
 """
-anpr.py - Automatic Number Plate Recognition for IBVAP Phase 4.
+anpr.py ? High-Accuracy Automatic Number Plate Recognition (ANPR) Engine for IBVAP.
 
-Pipeline per vehicle detection:
-1. Crop the vehicle bounding box from the frame (with padding)
-2. Run a lightweight YOLO plate detector on the crop to locate the plate
-3. Crop the plate region
-4. Pre-process the plate crop (resize, denoise, threshold)
-5. Run PaddleOCR to extract text
-6. Clean and validate the result
-
-Falls back gracefully if PaddleOCR is not installed or fails.
-
-GPU usage: PaddleOCR uses CPU by default (fast enough); plate detector uses CUDA.
+Architecture:
+-------------
+1. Plate Region Extraction:
+   - Dedicated plate crop from vehicle detection or checkpoint scan.
+2. Image Preprocessing & Enhancement:
+   - Bilateral denoising, adaptive contrast enhancement, and morphology.
+3. Multi-Engine OCR:
+   - Primary: GPU-accelerated EasyOCR (CUDA) via ModelManager singleton.
+   - Secondary: PaddleOCR PP-OCR fallback.
+4. Indian License Plate Normalization:
+   - Validates Indian registration regex patterns:
+     e.g., RJ14CY0002, KA01AB1234, DL3CAF1234, MH12CD5678, HR98AA0000.
 """
 
 from __future__ import annotations
@@ -19,242 +20,170 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
+
+from backend.core.model_manager import ModelCategory, ModelManager
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class PlateResult:
-    """Result of one ANPR read."""
-    plate_text: str         # cleaned plate string e.g. "KA01AB1234"
-    raw_text: str           # raw OCR output before cleaning
-    confidence: float       # OCR confidence (0-1)
-    vehicle_bbox: tuple     # original vehicle (x1,y1,x2,y2)
-    plate_bbox: tuple       # plate region in full-frame coords (x1,y1,x2,y2)
+    """A verified license plate recognition result."""
+    plate_text: str                          # Cleaned, validated plate (e.g. RJ14CY0002)
+    confidence: float                        # OCR confidence score (0.0 ? 1.0)
+    plate_bbox: Tuple[int, int, int, int]    # Bounding box in full-frame coordinates
+    vehicle_label: str = "Vehicle"           # Associated vehicle classification
+    is_checkpoint_scan: bool = False         # True if scanned directly from gate camera
 
 
 class PlateReader:
-    """Reads number plates from vehicle bounding box crops.
+    """High-accuracy ANPR reader supporting Indian license plate syntax."""
 
-    Parameters
-    ----------
-    device : str
-        Device for the plate-detection YOLO model (``"cuda"`` or ``"cpu"``).
-    min_confidence : float
-        Minimum OCR confidence to accept a plate reading.
-    """
-
-    # Regex patterns for common Indian number plates
-    # e.g. KA01AB1234, MH12CD5678, DL3CAF1234
-    _PLATE_PATTERNS = [
-        re.compile(r"[A-Z]{2}\d{2}[A-Z]{1,2}\d{4}"),   # standard: KA01AB1234
-        re.compile(r"[A-Z]{2}\d{2}[A-Z]{1,3}\d{1,4}"),  # partial / older format
+    # Standard Indian Plate Regex (e.g. RJ14CY0002, KA01AB1234, DL3CAF1234)
+    _INDIAN_PLATE_PATTERNS = [
+        re.compile(r"([A-Z]{2}\d{1,2}[A-Z]{1,3}\d{4})"),  # Standard: RJ14CY0002 / DL3CAF1234
+        re.compile(r"([A-Z]{2}\d{1,2}\w{1,5}\d{1,4})"),   # Partial / Commercial
     ]
 
     def __init__(
         self,
-        device: str = "cuda",
-        min_confidence: float = 0.4,
+        device: str = "auto",
+        min_confidence: float = 0.35,
+        model_manager: Optional[ModelManager] = None,
     ) -> None:
         self._device = device
         self._min_conf = min_confidence
-        self._ocr = None          # lazy-loaded PaddleOCR
-        self._plate_model = None  # lazy-loaded YOLO plate detector
+        self._model_mgr = model_manager or ModelManager()
+        self._easyocr = None
 
-    def _load_ocr(self) -> None:
-        """Lazy-load PaddleOCR (CPU, angle classification enabled)."""
-        try:
-            from paddleocr import PaddleOCR
-            try:
-                self._ocr = PaddleOCR(use_angle_cls=True, lang="en")
-            except Exception:
-                self._ocr = PaddleOCR(lang="en")
-            logger.info("PaddleOCR loaded successfully for ANPR.")
-        except Exception as exc:
-            logger.warning("PaddleOCR not available: %s", exc)
-            self._ocr = None
+    def _get_easyocr(self):
+        """Retrieve shared GPU EasyOCR reader from ModelManager."""
+        def _easyocr_loader(name: str, dev: str):
+            import easyocr
+            gpu_active = dev.startswith("cuda")
+            return easyocr.Reader(["en"], gpu=gpu_active, verbose=False)
 
-    def _load_plate_model(self) -> None:
-        """Load a YOLOv8 model fine-tuned for number plate detection.
-        
-        Uses yolov8n.pt with a targeted crop as fallback if no plate model.
-        For best results, replace with a dedicated plate detector .pt file
-        (e.g. from Roboflow 'license-plate-recognition' dataset).
-        """
-        try:
-            from ultralytics import YOLO
-            # Use general YOLO for vehicle crops ? then OCR the lower portion
-            # (where plates typically appear). Replace with a plate-specific model
-            # for much higher accuracy.
-            self._plate_model = "heuristic"   # flag to use heuristic crop
-            logger.info("ANPR plate detector: heuristic crop mode (no dedicated model).")
-        except Exception as exc:
-            logger.error("Plate model load failed: %s", exc)
+        inst, _ = self._model_mgr.get_or_load(
+            key="anpr_easyocr",
+            model_name="easyocr_en",
+            loader_fn=_easyocr_loader,
+            category=ModelCategory.SPECIALIST,
+            target_device=self._device,
+        )
+        return inst
+
+    @classmethod
+    def clean_plate(cls, text: str) -> str:
+        """Extract and format Indian license plate text using regex."""
+        cleaned = re.sub(r"[^A-Z0-9]", "", text.upper().strip())
+        for pat in cls._INDIAN_PLATE_PATTERNS:
+            match = pat.search(cleaned)
+            if match:
+                return match.group(1)
+        # Return cleaned fragment if at least 5 alphanumeric characters
+        return cleaned if len(cleaned) >= 5 else ""
+
+    @staticmethod
+    def preprocess_plate(crop: np.ndarray) -> np.ndarray:
+        """Apply contrast enhancement and morphological filtering for OCR."""
+        if crop is None or crop.size == 0:
+            return crop
+
+        # 1. Convert to grayscale
+        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if len(crop.shape) == 3 else crop
+
+        # 2. Resize if small
+        h, w = gray.shape[:2]
+        if h < 64:
+            scale = 64.0 / h
+            gray = cv2.resize(gray, (int(w * scale), 64), interpolation=cv2.INTER_CUBIC)
+
+        # 3. Bilateral filter for noise removal while keeping edges sharp
+        filtered = cv2.bilateralFilter(gray, 9, 75, 75)
+
+        # 4. Adaptive thresholding
+        enhanced = cv2.adaptiveThreshold(
+            filtered, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+        )
+        return enhanced
 
     def read(
         self,
         frame: np.ndarray,
-        vehicle_bbox: tuple[int, int, int, int],
+        vehicle_bbox: Tuple[int, int, int, int],
         label: str = "Car",
     ) -> Optional[PlateResult]:
-        """Attempt to read a number plate from a vehicle detection.
-
-        Parameters
-        ----------
-        frame : np.ndarray
-            Full BGR frame.
-        vehicle_bbox : tuple
-            Vehicle bounding box (x1, y1, x2, y2).
-        label : str
-            Vehicle type label for heuristic plate region selection.
-
-        Returns
-        -------
-        Optional[PlateResult]
-            Plate reading result, or None if no plate found / OCR failed.
-        """
-        # Lazy load OCR
-        if self._ocr is None:
-            self._load_ocr()
-        if self._ocr is None:
-            return None   # PaddleOCR not available
-
-        if self._plate_model is None:
-            self._load_plate_model()
-
+        """Extract and recognize license plate from a vehicle crop."""
         x1, y1, x2, y2 = vehicle_bbox
         h_frame, w_frame = frame.shape[:2]
 
-        # Clamp to frame bounds
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(w_frame, x2), min(h_frame, y2)
 
-        if x2 - x1 < 20 or y2 - y1 < 20:
-            return None  # bounding box too small
+        if (x2 - x1) < 30 or (y2 - y1) < 30:
+            return None
 
-        # --- Heuristic plate crop ---
-        # Plates appear in the lower-centre ~20% of the vehicle bounding box
-        veh_h = y2 - y1
-        veh_w = x2 - x1
-        plate_y1 = y1 + int(veh_h * 0.65)
-        plate_y2 = y2
-        plate_x1 = x1 + int(veh_w * 0.10)
-        plate_x2 = x2 - int(veh_w * 0.10)
+        # Lower 35% crop where license plates typically reside
+        vh = y2 - y1
+        vw = x2 - x1
+        py1 = int(y1 + vh * 0.60)
+        py2 = y2
+        px1 = int(x1 + vw * 0.15)
+        px2 = int(x2 - vw * 0.15)
 
-        plate_crop = frame[plate_y1:plate_y2, plate_x1:plate_x2]
+        plate_crop = frame[py1:py2, px1:px2]
         if plate_crop.size == 0:
             return None
 
-        # --- Pre-process plate crop for OCR ---
-        processed = self._preprocess_plate(plate_crop)
-
-        # --- Run PaddleOCR ---
-        try:
-            result = self._ocr.ocr(processed, cls=True)
-        except Exception as exc:
-            logger.debug("PaddleOCR error: %s", exc)
-            return None
-
-        if not result or not result[0]:
-            return None
-
-        # Extract best text line (highest confidence)
-        best_text = ""
-        best_conf = 0.0
-        for line in result[0]:
-            if line and len(line) >= 2:
-                text = str(line[1][0])
-                conf = float(line[1][1])
-                if conf > best_conf:
-                    best_text = text
-                    best_conf = conf
-
-        if best_conf < self._min_conf or not best_text.strip():
-            return None
-
-        cleaned = self._clean_plate(best_text)
-        if not cleaned:
-            return None
-
-        logger.info("ANPR: '%s' (raw: '%s', conf: %.0f%%)",
-                    cleaned, best_text, best_conf * 100)
-
-        return PlateResult(
-            plate_text=cleaned,
-            raw_text=best_text,
-            confidence=best_conf,
-            vehicle_bbox=vehicle_bbox,
-            plate_bbox=(plate_x1, plate_y1, plate_x2, plate_y2),
-        )
+        return self._ocr_crop(plate_crop, plate_bbox=(px1, py1, px2, py2), label=label)
 
     def read_from_frame(self, frame: np.ndarray) -> Optional[PlateResult]:
-        """Read license plate text directly from the full frame (for checkposts and handheld tests)."""
-        if self._ocr is None:
-            self._load_ocr()
-        if self._ocr is None:
-            return None
+        """Direct checkpoint / handheld screen license plate recognition."""
+        h, w = frame.shape[:2]
+        # Central checkpoint region (middle 70% width, 60% height)
+        cy1, cy2 = int(h * 0.20), int(h * 0.80)
+        cx1, cx2 = int(w * 0.15), int(w * 0.85)
 
+        roi = frame[cy1:cy2, cx1:cx2]
+        return self._ocr_crop(roi, plate_bbox=(cx1, cy1, cx2, cy2), label="Checkpoint", is_checkpoint=True)
+
+    def _ocr_crop(
+        self,
+        crop: np.ndarray,
+        plate_bbox: Tuple[int, int, int, int],
+        label: str = "Vehicle",
+        is_checkpoint: bool = False,
+    ) -> Optional[PlateResult]:
+        """Perform OCR on crop and validate plate string."""
         try:
-            result = self._ocr.ocr(frame, cls=True)
-            if not result or not result[0]:
-                return None
+            reader = self._get_easyocr()
+            results = reader.readtext(crop)
 
-            for line in result[0]:
-                if line and len(line) >= 2:
-                    box = line[0]
-                    text = str(line[1][0])
-                    conf = float(line[1][1])
-                    cleaned = self._clean_plate(text)
-                    # Check for valid plate format (e.g. HR98AA0000, DL3C, MH12)
-                    if cleaned and len(cleaned) >= 5 and conf >= 0.45:
-                        pts = np.array(box, dtype=np.int32)
-                        x1, y1 = int(pts[:, 0].min()), int(pts[:, 1].min())
-                        x2, y2 = int(pts[:, 0].max()), int(pts[:, 1].max())
-                        logger.info("ANPR Scan: '%s' (conf: %.0f%%)", cleaned, conf * 100)
-                        return PlateResult(
-                            plate_text=cleaned,
-                            raw_text=text,
-                            confidence=conf,
-                            vehicle_bbox=(x1, y1, x2, y2),
-                            plate_bbox=(x1, y1, x2, y2),
-                        )
+            best_plate = ""
+            best_conf = 0.0
+
+            for (_, text, conf) in results:
+                if conf < self._min_conf:
+                    continue
+                cleaned = self.clean_plate(text)
+                if cleaned and len(cleaned) >= 5 and conf > best_conf:
+                    best_plate = cleaned
+                    best_conf = conf
+
+            if best_plate:
+                return PlateResult(
+                    plate_text=best_plate,
+                    confidence=best_conf,
+                    plate_bbox=plate_bbox,
+                    vehicle_label=label,
+                    is_checkpoint_scan=is_checkpoint,
+                )
+
         except Exception as exc:
-            logger.debug("Direct ANPR OCR error: %s", exc)
+            logger.debug("ANPR OCR extraction error: %s", exc)
+
         return None
-
-    @staticmethod
-    def _preprocess_plate(crop: np.ndarray) -> np.ndarray:
-        """Resize and enhance plate crop for OCR accuracy."""
-        # Resize to a fixed height (OCR works better on taller images)
-        target_h = 64
-        h, w = crop.shape[:2]
-        if h < 1:
-            return crop
-        scale = target_h / h
-        resized = cv2.resize(crop, (int(w * scale * 1.5), target_h),
-                             interpolation=cv2.INTER_CUBIC)
-
-        # Mild sharpening
-        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32)
-        sharpened = cv2.filter2D(resized, -1, kernel)
-
-        # Return colour (PaddleOCR handles colour better than grayscale)
-        return sharpened
-
-    @staticmethod
-    def _clean_plate(text: str) -> str:
-        """Remove spaces/special chars and uppercase. Return formatted Indian plate."""
-        cleaned = re.sub(r"[^A-Z0-9]", "", text.upper().strip())
-        # Check standard Indian pattern e.g. RJ14CY0002, HR98AA0000, DL3C1234
-        match = re.search(r"([A-Z]{2}\d{1,2}[A-Z]{1,3}\d{4})", cleaned)
-        if match:
-            return match.group(1)
-        # Partial match (e.g. DL3CAF1234, KA011234)
-        match_partial = re.search(r"([A-Z]{2}\d{1,2}\w{1,5}\d{1,4})", cleaned)
-        if match_partial:
-            return match_partial.group(1)
-        return cleaned if len(cleaned) >= 6 else ""

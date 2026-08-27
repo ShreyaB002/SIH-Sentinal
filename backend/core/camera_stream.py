@@ -36,6 +36,7 @@ class CameraStatus(str, enum.Enum):
     ONLINE = "ONLINE"
     OFFLINE = "OFFLINE"
     CONNECTING = "CONNECTING"
+    DEGRADED = "DEGRADED"
 
 
 class CameraStream:
@@ -58,6 +59,14 @@ class CameraStream:
         self._status = CameraStatus.CONNECTING
         self._status_lock = threading.Lock()
 
+        # Health & Performance Telemetry
+        self._reconnect_attempts = 0
+        self._frame_count = 0
+        self._fps_start_time = time.time()
+        self._measured_fps = 0.0
+        self._last_frame_ts = time.time()
+        self._latency_ms = 0.0
+
         self._raw_frame: Optional[np.ndarray] = None
         self._annotated_frame: Optional[np.ndarray] = None
         self._frame_lock = threading.Lock()
@@ -65,6 +74,23 @@ class CameraStream:
         self._running = False
         self._read_thread: Optional[threading.Thread] = None
         self._ai_thread: Optional[threading.Thread] = None
+
+    def get_health(self) -> dict:
+        """Return operational health status and performance telemetry."""
+        with self._status_lock:
+            status_val = self._status.value
+
+        now = time.time()
+        age = max(0.0, now - self._last_frame_ts)
+        return {
+            "camera_id": self.camera_id,
+            "name": self.name,
+            "status": status_val,
+            "fps": round(self._measured_fps, 1),
+            "latency_ms": round(self._latency_ms, 1),
+            "reconnect_attempts": self._reconnect_attempts,
+            "last_frame_age_seconds": round(age, 2),
+        }
 
     # ------------------------------------------------------------------
     # Lifecycle

@@ -72,22 +72,31 @@ class FaceRecognizer:
                     device, match_threshold)
 
     def _load(self) -> None:
-        """Lazy-load InsightFace with CUDA ONNX provider, or fallback to OpenCV."""
-        try:
+        """Lazy-load InsightFace with CUDA ONNX provider via ModelManager."""
+        from backend.core.model_manager import ModelCategory, ModelManager
+        mm = ModelManager()
+
+        def _insightface_loader(name: str, dev: str):
             import insightface
             from insightface.app import FaceAnalysis
             providers = (
                 ["CUDAExecutionProvider", "CPUExecutionProvider"]
-                if self._device == "cuda"
+                if dev == "cuda"
                 else ["CPUExecutionProvider"]
             )
-            self._app = FaceAnalysis(
-                name="buffalo_l",
-                providers=providers,
+            app = FaceAnalysis(name=name, providers=providers)
+            app.prepare(ctx_id=0 if dev == "cuda" else -1, det_size=self._det_size)
+            return app
+
+        try:
+            self._app, _ = mm.get_or_load(
+                key="face_insightface",
+                model_name="buffalo_l",
+                loader_fn=_insightface_loader,
+                category=ModelCategory.SPECIALIST,
+                target_device=self._device,
             )
-            self._app.prepare(ctx_id=0 if self._device == "cuda" else -1,
-                              det_size=self._det_size)
-            logger.info("InsightFace (buffalo_l) loaded on %s.", self._device)
+            logger.info("InsightFace (buffalo_l) ready via ModelManager.")
         except Exception as exc:
             logger.warning("InsightFace not available (%s), using OpenCV Face Cascade fallback.", exc)
             self._app = "opencv_fallback"

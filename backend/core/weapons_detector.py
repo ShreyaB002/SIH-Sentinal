@@ -71,30 +71,31 @@ class WeaponsDetector:
             model_name, device, confidence, self._classes,
         )
 
-    _load_lock = threading.Lock()
+    def _get_model(self):
+        """Lazy-load the threat model via ModelManager singleton."""
+        from backend.core.model_manager import ModelCategory, ModelManager
+        mm = ModelManager()
 
-    def _load_model(self) -> None:
-        """Lazy-load the YOLO weapon model with thread lock protection."""
-        with self._load_lock:
-            if self._model is not None:
-                return
-            try:
-                from ultralytics import YOLO
-                self._model = YOLO(self._model_name)
-                # If YOLO-World open-vocabulary model, set text classes
-                if hasattr(self._model, "set_classes") and "world" in str(self._model_name).lower():
-                    self._model.set_classes(self._classes)
-                    self._names = None
-                else:
-                    self._names = getattr(self._model, "names", {0: "Gun", 1: "Explosive", 2: "Grenade", 3: "Knife"})
-                self._model.to(self._device)
-                logger.info(
-                    "Weapons detection model loaded on %s: %s (classes: %s)",
-                    self._device, self._model_name, self._names or self._classes,
-                )
-            except Exception as exc:
-                logger.error("Failed to load weapon model: %s", exc)
-                raise
+        def _threat_loader(m_name: str, dev: str):
+            from ultralytics import YOLO
+            m = YOLO(m_name)
+            if hasattr(m, "set_classes") and "world" in str(m_name).lower():
+                m.set_classes(self._classes)
+            m.to(dev)
+            return m
+
+        inst, meta = mm.get_or_load(
+            key="threat_detector",
+            model_name=self._model_name,
+            loader_fn=_threat_loader,
+            category=ModelCategory.SPECIALIST,
+            target_device=self._device,
+        )
+        if hasattr(inst, "names") and isinstance(inst.names, dict) and "world" not in str(self._model_name).lower():
+            self._names = inst.names
+        else:
+            self._names = None
+        return inst, meta.device
 
     def detect(self, frame: np.ndarray) -> list[WeaponDetection]:
         """Run weapons detection on a single BGR frame.
@@ -110,17 +111,12 @@ class WeaponsDetector:
             All detected weapons/threats above the confidence threshold.
             Empty list if none found or model unavailable.
         """
-        if self._model is None:
-            try:
-                self._load_model()
-            except Exception:
-                return []
-
         try:
-            results = self._model.predict(
+            model, dev = self._get_model()
+            results = model.predict(
                 source=frame,
                 conf=self._confidence,
-                device=self._device,
+                device=dev,
                 imgsz=640,
                 verbose=False,
             )

@@ -1,43 +1,45 @@
-# IBVAP ? Intelligent Border Video Analytics Platform
+# IBVAP — Intelligent Border Video Analytics Platform
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-green.svg)](https://fastapi.tiangolo.com/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-CUDA%2012.4-orange.svg)](https://pytorch.org/)
-[![YOLOv8](https://img.shields.io/badge/Ultralytics-YOLOv8-yellow.svg)](https://docs.ultralytics.com/)
+[![Ultralytics](https://img.shields.io/badge/Ultralytics-YOLO26%20%2F%20YOLOv8-yellow.svg)](https://docs.ultralytics.com/)
 [![SIH](https://img.shields.io/badge/SIH-Border%20Surveillance-red.svg)](#)
 
 > **AI-Based Intelligent Video Analytics Platform for Border Surveillance using Existing CCTV Infrastructure**
 
 ---
 
-## ?? Problem Overview
+## 🎯 Problem Overview
 
 Border security forces deploy CCTV cameras at **Border Out Posts (BOPs), check posts, border roads, and strategic perimeters**. However, conventional CCTV systems only offer passive video recording and require continuous, exhausting human observation. 
 
 Advanced capabilities such as **Facial Recognition Systems (FRS), Automatic Number Plate Recognition (ANPR), intrusion detection, and object tracking** traditionally demand costly, specialized edge cameras and proprietary hardware.
 
-### ?? The Solution: IBVAP
+### 🛡️ The Solution: IBVAP
 **IBVAP** is an entirely software-defined surveillance platform that transforms **existing legacy IP cameras (RTSP/HTTP)** into an intelligent surveillance network without requiring hardware upgrades. It runs on standard edge/server hardware with GPU acceleration, delivering actionable, real-time intelligence for control room operators.
 
 ---
 
-## ?? Key Features
+## 🚀 Specialist-Model Architecture & Capabilities
 
-| Surveillance Capability | Engine / Model | Description |
+| Surveillance Capability | Specialist Model / Engine | Architecture & Description |
 | :--- | :--- | :--- |
-| **Human Detection & Tracking** | YOLOv8 + ByteTrack | Real-time multi-person detection with persistent trajectory IDs across frames. |
-| **Vehicle Classification** | YOLOv8 (COCO) | Detects and categorizes vehicles into **Cars, Trucks, Buses, and Motorcycles**. |
-| **Weapons & Threat Detection** | YOLO-World Large (Open-Vocabulary) | Detects firearms (pistols, rifles, shotguns) and blades (knives, machetes) in real time. |
-| **Facial Recognition System (FRS)** | InsightFace (ArcFace) | Extracts 512-dimensional facial embeddings and performs real-time cosine similarity matching against a target watchlist. |
-| **Target Watchlist Management** | Integrated Web UI + SQLite | Control room personnel can upload suspect face photos and names directly via the browser. |
-| **Automatic Number Plate Recognition (ANPR)** | PaddleOCR + Plate Crop | Localizes license plates on moving/stationary vehicles and extracts alphanumeric plate text with angle correction. |
-| **Virtual Fence Intrusion Detection** | Point-in-Polygon Geometric Engine | Configurable polygonal exclusion zones per camera; triggers alarms upon boundary breaches. |
-| **Suspicious Activity (Loitering)** | Dwell-Time Accumulator | Fires an alert when an individual stays inside a restricted zone longer than the configured threshold (>5s). |
-| **Suspicious Activity (Running)** | Kinematic Velocity Monitor | Measures centroid displacement vectors (>22 px/frame) to flag rapid evasive movement. |
-| **Suspicious Activity (Crowd Density)** | Occupant Density Counter | Triggers group formation alerts when >= 3 individuals gather in a sensitive sector. |
-| **Night-Time Movement Detection** | LAB CLAHE Adaptive Equalization | Enhances low-light / dark CCTV footage before AI inference and tags night movement. |
+| **Centralized Model Registry** | `ModelManager` Singleton | Shared GPU singleton per model across all 6 streams with VRAM tracking & auto-fallback. |
+| **Object Detection & Classification** | `YOLO26` / `YOLOv8` Abstraction | High-accuracy detection for Persons, Cars, Trucks, Buses, and Motorcycles. |
+| **Multi-Object Tracking & Kinematics** | `ByteTrack` Kinematics Engine | Persistent IDs, centroid trajectory history, entry/exit timestamps, and velocity estimation. |
+| **Cross-Camera Person Re-ID** | `OSNet` (512-d Embedding) | Identifies same suspect across different cameras (`cam_01 Track #17` $\rightarrow$ `cam_04 Track #42`). |
+| **Facial Recognition System (FRS)** | `InsightFace` (ArcFace `buffalo_l`) | 512-d facial embedding extraction with cosine similarity matching against target watchlist. |
+| **Target Watchlist Management** | Integrated Web UI + SQLite | Control room personnel can upload suspect face photos and names directly via browser. |
+| **Automatic Number Plate Recognition** | GPU `EasyOCR` + `PP-OCR` + Regex | Localizes vehicle plates, normalizes Indian registration syntax (`RJ14CY0002`), and checkpoint scan. |
+| **Weapons & Threat Detection** | Fine-Tuned Threat Model + YOLO-World | Dedicated detection of firearms (pistols, rifles) and melee weapons (knives, explosives). |
+| **Low-Light / Night Enhancement** | `LowLightProcessor` (Retinex / CLAHE) | Luminance assessment in LAB space and adaptive enhancement for dark scenes. |
+| **Virtual Fence Intrusion** | Point-in-Polygon Engine | Polygon exclusion zones per camera; triggers alarms upon boundary breaches. |
+| **Suspicious Activity (Loitering & Speed)** | Dwell-Time & Velocity Monitor | Flags individuals lingering in zones (>5s) or running at high velocity (>22 px/frame). |
+| **Event Correlation & Risk Engine** | `EventCorrelationEngine` | Multi-signal synthesis (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) with explainable evidence trails. |
+| **Camera Health Telemetry** | `CameraStream` Health Monitor | Tracks FPS, frame age, latency, reconnect counters, and operational drop events. |
 | **Real-Time C2 Dashboard** | Responsive Matrix + WebSockets | 6-camera live grid with instant red threat pulsing, visual overlays, and WebSocket alert feed. |
-| **Audit & Forensic Logging** | Relational SQLite (events.db) | Complete incident history with timestamps, confidence scores, bounding boxes, and camera IDs. |
+| **Audit & Forensic Logging** | Relational SQLite (`events.db`) | Complete incident history with timestamps, confidence scores, bounding boxes, and camera IDs. |
 
 ---
 
