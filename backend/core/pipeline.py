@@ -31,6 +31,9 @@ from backend.config import (
     BBOX_COLORS,
     CROWD_THRESHOLD,
     DETECT_EVERY_N_FRAMES,
+    DETECTION_MODEL,
+    DETECTION_DEVICE,
+    DETECTION_FALLBACKS,
     LABEL_OVERRIDES,
     LOITER_SECONDS,
     NIGHT_BRIGHTNESS_THRESHOLD,
@@ -47,6 +50,7 @@ from backend.config import (
 )
 from backend.core.activity import ActivityAnalyzer, ActivityEvent
 from backend.core.anpr import PlateReader, PlateResult
+from backend.core.detector import YOLO26Detector, BaseDetector
 from backend.core.face_recognition import FaceRecognizer, FaceResult
 from backend.core.fence import VirtualFence
 from backend.core.night import NightEnhancer
@@ -78,11 +82,22 @@ class FramePipeline:
         camera_id: str,
         event_manager: "EventManager",
         face_recognizer: Optional[FaceRecognizer] = None,
+        detector: Optional[BaseDetector] = None,
     ) -> None:
         self.camera_id = camera_id
         self._event_manager = event_manager
         self._frame_count = 0
         self._device = "cuda"
+
+        # Shared high-accuracy detector instance via ModelManager
+        self._detector: BaseDetector = detector or YOLO26Detector(
+            model_name=DETECTION_MODEL,
+            confidence=YOLO_CONFIDENCE,
+            class_ids=YOLO_CLASSES,
+            device=DETECTION_DEVICE,
+            fallback_models=DETECTION_FALLBACKS,
+            label_overrides=LABEL_OVERRIDES,
+        )
 
         # Night enhancer with calibrated thresholds
         self._night = NightEnhancer(
@@ -268,26 +283,17 @@ class FramePipeline:
 
     def _run_tracking(self, frame: np.ndarray) -> list[TrackedObject]:
         try:
-            if self._tracker_model is None:
-                from ultralytics import YOLO
-                self._tracker_model = YOLO("yolov8n.pt")
-                self._tracker_model.to(self._device)
-                logger.info("[%s] Tracker model loaded on %s.", self.camera_id, self._device)
-
-            try:
-                results = self._tracker_model.track(
-                    source=frame, conf=YOLO_CONFIDENCE,
-                    classes=YOLO_CLASSES, device=self._device,
-                    persist=True, tracker="bytetrack.yaml", verbose=False,
+            tracked_dets = self._detector.track(frame, camera_id=self.camera_id)
+            return [
+                TrackedObject(
+                    track_id=td.track_id,
+                    class_id=td.class_id,
+                    label=td.label,
+                    confidence=td.confidence,
+                    bbox=td.bbox,
                 )
-            except Exception as trk_err:
-                # Fallback to botsort if bytetrack has solver issues
-                results = self._tracker_model.track(
-                    source=frame, conf=YOLO_CONFIDENCE,
-                    classes=YOLO_CLASSES, device=self._device,
-                    persist=True, tracker="botsort.yaml", verbose=False,
-                )
-            return Tracker.from_track_results(results, LABEL_OVERRIDES)
+                for td in tracked_dets
+            ]
         except Exception as exc:
             logger.warning("[%s] Tracking error: %s", self.camera_id, exc)
             return []

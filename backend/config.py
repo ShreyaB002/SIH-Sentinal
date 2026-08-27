@@ -77,15 +77,18 @@ RTSP_RECONNECT_DELAY: float = 3.0
 # Set False to run Phase 1 mode (no AI, no overhead).
 AI_ENABLED: bool = True
 
-# YOLOv8 model name ? downloaded automatically on first run into models/
-# Options by speed/accuracy: yolov8n (nano) < yolov8s < yolov8m < yolov8l
-YOLO_MODEL: str = "yolov8n.pt"
+# ---------------------------------------------------------------------------
+# Primary Object Detector (Phase 3 — YOLO26 & High-Accuracy Suite)
+# ---------------------------------------------------------------------------
+# Options: yolo26x, yolo26l, yolo26m, yolo11x, yolo11m, yolov8n
+DETECTION_MODEL: str = "yolo26m.pt"
+DETECTION_DEVICE: str = "auto"        # "auto", "cuda", "cpu"
+DETECTION_FALLBACKS: list[str] = ["yolo26l.pt", "yolo26m.pt", "yolo11m.pt", "yolov8n.pt"]
 
-# Minimum confidence to keep a detection (0.0–1.0)
+YOLO_MODEL: str = DETECTION_MODEL
 YOLO_CONFIDENCE: float = 0.28
 
-# COCO class IDs to detect. Uncomment/add as needed.
-# Full list: https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml
+# COCO class IDs to detect (Person, Vehicles)
 YOLO_CLASSES: list[int] = [
     0,   # person
     2,   # car
