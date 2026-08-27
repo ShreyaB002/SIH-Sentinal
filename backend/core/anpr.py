@@ -247,7 +247,14 @@ class PlateReader:
 
     @staticmethod
     def _clean_plate(text: str) -> str:
-        """Remove spaces/special chars and uppercase. Return empty if nonsense."""
+        """Remove spaces/special chars and uppercase. Return formatted Indian plate."""
         cleaned = re.sub(r"[^A-Z0-9]", "", text.upper().strip())
-        # Must be at least 4 chars to be a valid plate fragment
-        return cleaned if len(cleaned) >= 4 else ""
+        # Check standard Indian pattern e.g. RJ14CY0002, HR98AA0000, DL3C1234
+        match = re.search(r"([A-Z]{2}\d{1,2}[A-Z]{1,3}\d{4})", cleaned)
+        if match:
+            return match.group(1)
+        # Partial match (e.g. DL3CAF1234, KA011234)
+        match_partial = re.search(r"([A-Z]{2}\d{1,2}\w{1,5}\d{1,4})", cleaned)
+        if match_partial:
+            return match_partial.group(1)
+        return cleaned if len(cleaned) >= 6 else ""

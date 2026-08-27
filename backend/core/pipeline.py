@@ -389,11 +389,22 @@ class FramePipeline:
     @staticmethod
     def _draw_label(frame, text, x, y, color, scale=0.45, thick=1, top=True):
         (tw, th), bl = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, thick)
+        h, w = frame.shape[:2]
+        x = max(2, min(w - tw - 6, x))
         if top:
-            cv2.rectangle(frame, (x, y-th-bl-4), (x+tw+4, y), color, -1)
-            cv2.putText(frame, text, (x+2, y-bl-2),
-                        cv2.FONT_HERSHEY_SIMPLEX, scale, (255,255,255), thick, cv2.LINE_AA)
+            if y - th - bl - 6 < 0:
+                box_y1 = y
+                box_y2 = min(h, y + th + bl + 6)
+                text_y = y + th + 2
+            else:
+                box_y1 = max(0, y - th - bl - 6)
+                box_y2 = y
+                text_y = y - bl - 2
+            cv2.rectangle(frame, (x, box_y1), (x + tw + 6, box_y2), color, -1)
+            cv2.putText(frame, text, (x + 3, text_y),
+                        cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), thick, cv2.LINE_AA)
         else:
-            cv2.rectangle(frame, (x, y), (x+tw+4, y+th+bl+4), color, -1)
-            cv2.putText(frame, text, (x+2, y+th+2),
-                        cv2.FONT_HERSHEY_SIMPLEX, scale, (255,255,255), thick, cv2.LINE_AA)
+            y2 = min(h - 2, y + th + bl + 6)
+            cv2.rectangle(frame, (x, y), (x + tw + 6, y2), color, -1)
+            cv2.putText(frame, text, (x + 3, min(h - 4, y + th + 2)),
+                        cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), thick, cv2.LINE_AA)
