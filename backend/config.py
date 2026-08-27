@@ -39,9 +39,9 @@ CAMERAS: dict[str, dict] = {
         "type": "file",
     },
     "cam_03": {
-        "name": "Check Post Alpha (Live IP Cam)",
-        "source": "http://172.17.10.90:8080/video",
-        "type": "rtsp",
+        "name": "Check Post Alpha (USB Phone / Cam)",
+        "source": "0",
+        "type": "usb",
     },
     "cam_04": {
         "name": "BOP Sector 4 (Fence Line)",

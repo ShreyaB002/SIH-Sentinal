@@ -77,8 +77,15 @@ class CameraStream:
 
         self._running = True
 
-        # Ingestion thread
-        target = self._read_loop_file if self._source_type == "file" else self._read_loop_rtsp
+        # Determine capture loop based on source type
+        is_usb = self._source_type in ("usb", "webcam", "device") or str(self._source).isdigit()
+        if self._source_type == "file":
+            target = self._read_loop_file
+        elif is_usb:
+            target = self._read_loop_usb
+        else:
+            target = self._read_loop_rtsp
+
         self._read_thread = threading.Thread(
             target=target,
             name=f"IngestThread-{self.camera_id}",
@@ -141,14 +148,53 @@ class CameraStream:
 
     def _open_capture(self) -> Optional[cv2.VideoCapture]:
         try:
-            cap = cv2.VideoCapture(self._source)
-            if not cap.isOpened():
-                cap.release()
+            # Handle USB / Webcam device indices (e.g. 0, 1, "0", "1")
+            if str(self._source).isdigit():
+                dev_idx = int(self._source)
+                cap = cv2.VideoCapture(dev_idx, cv2.CAP_DSHOW)
+                if not cap.isOpened():
+                    cap = cv2.VideoCapture(dev_idx)
+            else:
+                cap = cv2.VideoCapture(self._source)
+
+            if not cap or not cap.isOpened():
+                if cap:
+                    cap.release()
                 return None
             return cap
         except Exception as exc:
             logger.warning("[%s] VideoCapture open failed: %s", self.camera_id, exc)
             return None
+
+    def _read_loop_usb(self) -> None:
+        """High-speed non-blocking loop for USB connected phone / webcams."""
+        while self._running:
+            self._set_status(CameraStatus.CONNECTING)
+            cap = self._open_capture()
+            if cap is None:
+                self._set_status(CameraStatus.OFFLINE)
+                for _ in range(int(RTSP_RECONNECT_DELAY * 10)):
+                    if not self._running:
+                        return
+                    time.sleep(0.1)
+                continue
+
+            self._set_status(CameraStatus.ONLINE)
+            logger.info("[%s] USB Camera connected (Device: %s)", self.camera_id, self._source)
+
+            try:
+                while self._running:
+                    ret, frame = cap.read()
+                    if not ret:
+                        logger.warning("[%s] USB read failed / unplugged, reconnecting...", self.camera_id)
+                        break
+
+                    with self._frame_lock:
+                        self._raw_frame = frame
+                        if self._pipeline is None:
+                            self._annotated_frame = frame
+            finally:
+                cap.release()
 
     def _read_loop_file(self) -> None:
         cap = self._open_capture()
