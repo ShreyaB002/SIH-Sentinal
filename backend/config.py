@@ -230,6 +230,17 @@ ANPR_ENABLED: bool = True
 ANPR_MIN_CONFIDENCE: float = 0.40         # minimum OCR confidence to accept plate
 
 # ---------------------------------------------------------------------------
+# Person Re-Identification  (Phase 5 — OSNet Cross-Camera Re-ID)
+# ---------------------------------------------------------------------------
+
+REID_ENABLED: bool = True
+REID_MODEL: str = "osnet_x1_0"
+REID_SIMILARITY_THRESHOLD: float = 0.70    # cosine similarity threshold for match
+REID_GALLERY_SIZE: int = 500              # maximum active identity gallery size
+REID_EXPIRATION_SECONDS: float = 3600.0   # 1 hour TTL for gallery entries
+REID_INTERVAL_FRAMES: int = 8             # extract Re-ID embedding every Nth frame
+
+# ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 

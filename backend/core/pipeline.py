@@ -39,6 +39,8 @@ from backend.config import (
     NIGHT_BRIGHTNESS_THRESHOLD,
     NIGHT_CLAHE_CLIP,
     NIGHT_DENOISE,
+    REID_ENABLED,
+    REID_INTERVAL_FRAMES,
     RUNNING_SPEED,
     WEAPONS_CLASSES,
     WEAPONS_CONFIDENCE,
@@ -54,7 +56,8 @@ from backend.core.detector import YOLO26Detector, BaseDetector
 from backend.core.face_recognition import FaceRecognizer, FaceResult
 from backend.core.fence import VirtualFence
 from backend.core.night import NightEnhancer
-from backend.core.tracker import TrackedObject, Tracker
+from backend.core.reid import ReIDManager, ReIDMatchResult
+from backend.core.tracker import TrackedObject, ByteTracker, Tracker
 from backend.core.weapons_detector import WeaponsDetector, WeaponDetection
 
 if TYPE_CHECKING:
@@ -133,6 +136,11 @@ class FramePipeline:
 
         # Shared face recognizer (one instance across all cameras for watchlist sync)
         self._face_recognizer = face_recognizer
+
+        # Shared cross-camera Person Re-ID manager
+        self._reid_manager: Optional[ReIDManager] = (
+            ReIDManager() if REID_ENABLED else None
+        )
 
         # ANPR (per-pipeline, lazy-loaded)
         self._plate_reader: Optional[PlateReader] = None
@@ -216,6 +224,22 @@ class FramePipeline:
                             face_results.extend(faces)
                     except Exception as fr_err:
                         logger.debug("[%s] Face recognition error: %s", self.camera_id, fr_err)
+
+        # --- Cross-Camera Person Re-ID (OSNet) ---
+        reid_results: list[ReIDMatchResult] = []
+        if self._reid_manager and (self._frame_count % REID_INTERVAL_FRAMES == 0):
+            for obj in tracked:
+                if obj.label == "Person":
+                    try:
+                        crop, _ = self._crop_person(enhanced, obj.bbox)
+                        if crop is not None:
+                            match_res = self._reid_manager.match_or_register(
+                                crop, self.camera_id, obj.track_id
+                            )
+                            if match_res:
+                                reid_results.append(match_res)
+                    except Exception as reid_err:
+                        logger.debug("[%s] Re-ID error: %s", self.camera_id, reid_err)
 
         # --- ANPR ---
         plate_results: list[PlateResult] = []
