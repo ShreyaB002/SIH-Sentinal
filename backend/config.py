@@ -29,9 +29,9 @@ DB_PATH: Path = PROJECT_ROOT / "data" / "events.db"
 
 CAMERAS: dict[str, dict] = {
     "cam_01": {
-        "name": "BOP Sector 1 (Perimeter North)",
-        "source": "data/videos/test_cctv.mp4",
-        "type": "file",
+        "name": "Live Webcam Feed (Device 0)",
+        "source": "0",
+        "type": "usb",
     },
     "cam_02": {
         "name": "BOP Sector 2 (Border Road)",
@@ -39,9 +39,9 @@ CAMERAS: dict[str, dict] = {
         "type": "file",
     },
     "cam_03": {
-        "name": "Check Post Alpha (USB Phone / Cam)",
-        "source": "0",
-        "type": "usb",
+        "name": "BOP Sector 3 (Check Post Alpha)",
+        "source": "data/videos/test_cctv.mp4",
+        "type": "file",
     },
     "cam_04": {
         "name": "BOP Sector 4 (Fence Line)",
