@@ -106,8 +106,8 @@ class FramePipeline:
             denoise=NIGHT_DENOISE,
         )
 
-        # Per-pipeline YOLO tracker
-        self._tracker_model = None
+        # Per-pipeline ByteTracker kinematics engine
+        self._tracker = ByteTracker(camera_id=camera_id, max_history=30)
 
         # Weapons detector (YOLO-World-L, CUDA)
         self._weapons: Optional[WeaponsDetector] = None
@@ -284,16 +284,7 @@ class FramePipeline:
     def _run_tracking(self, frame: np.ndarray) -> list[TrackedObject]:
         try:
             tracked_dets = self._detector.track(frame, camera_id=self.camera_id)
-            return [
-                TrackedObject(
-                    track_id=td.track_id,
-                    class_id=td.class_id,
-                    label=td.label,
-                    confidence=td.confidence,
-                    bbox=td.bbox,
-                )
-                for td in tracked_dets
-            ]
+            return self._tracker.update_from_tracked_detections(tracked_dets)
         except Exception as exc:
             logger.warning("[%s] Tracking error: %s", self.camera_id, exc)
             return []
