@@ -81,8 +81,8 @@ AI_ENABLED: bool = True
 # Options by speed/accuracy: yolov8n (nano) < yolov8s < yolov8m < yolov8l
 YOLO_MODEL: str = "yolov8n.pt"
 
-# Minimum confidence to keep a detection (0.0?1.0)
-YOLO_CONFIDENCE: float = 0.45
+# Minimum confidence to keep a detection (0.0–1.0)
+YOLO_CONFIDENCE: float = 0.28
 
 # COCO class IDs to detect. Uncomment/add as needed.
 # Full list: https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml
@@ -103,9 +103,8 @@ LABEL_OVERRIDES: dict[int, str] = {
     7: "Truck",
 }
 
-# Run detection every Nth frame (1 = every frame, 3 = every 3rd frame).
-# Higher values reduce GPU load; annotations persist between detections.
-DETECT_EVERY_N_FRAMES: int = 2
+# Run detection every frame for instant real-time tracking
+DETECT_EVERY_N_FRAMES: int = 1
 
 # Bounding box colours per label (BGR)
 BBOX_COLORS: dict[str, tuple] = {
@@ -185,7 +184,7 @@ WEAPONS_MODEL: str = "models/threat_detector.pt"  # Fine-tuned Threat/Weapon Det
 WEAPONS_CLASSES: list[str] = [
     "Gun", "knife", "grenade", "explosion",
 ]
-WEAPONS_CONFIDENCE: float = 0.30  # Calibrated for specialized threat model
+WEAPONS_CONFIDENCE: float = 0.18  # Calibrated for specialized threat model
 
 # ---------------------------------------------------------------------------
 # Suspicious Activity  (Phase 3)

@@ -69,16 +69,14 @@ class PlateReader:
         """Lazy-load PaddleOCR (CPU, angle classification enabled)."""
         try:
             from paddleocr import PaddleOCR
-            # lang='en', use_angle_cls=True handles tilted plates
-            self._ocr = PaddleOCR(
-                use_angle_cls=True,
-                lang="en",
-                show_log=False,
-                use_gpu=False,   # OCR on CPU is fast enough
-            )
-            logger.info("PaddleOCR loaded for ANPR.")
+            try:
+                self._ocr = PaddleOCR(use_angle_cls=True, lang="en")
+            except Exception:
+                self._ocr = PaddleOCR(lang="en")
+            logger.info("PaddleOCR loaded successfully for ANPR.")
         except Exception as exc:
-            logger.error("PaddleOCR load failed: %s", exc)
+            logger.warning("PaddleOCR not available: %s", exc)
+            self._ocr = None
 
     def _load_plate_model(self) -> None:
         """Load a YOLOv8 model fine-tuned for number plate detection.

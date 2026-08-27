@@ -147,68 +147,93 @@ class FramePipeline:
         run_detection = (self._frame_count % DETECT_EVERY_N_FRAMES == 0)
 
         # --- Night enhancement ---
-        enhanced, is_night = self._night.process(frame)
+        try:
+            enhanced, is_night = self._night.process(frame)
+        except Exception:
+            enhanced, is_night = frame, False
 
-        # --- Detection every N frames ---
+        # --- Detection & Tracking ---
         if run_detection:
-            tracked = self._run_tracking(enhanced)
-            self._last_tracked = tracked
-            weapons = self._weapons.detect(enhanced) if self._weapons else []
-            self._last_weapons = weapons
+            try:
+                tracked = self._run_tracking(enhanced)
+                self._last_tracked = tracked
+            except Exception as trk_err:
+                logger.warning("[%s] Tracking error: %s", self.camera_id, trk_err)
+                tracked = self._last_tracked
+
+            try:
+                weapons = self._weapons.detect(enhanced) if self._weapons else []
+                self._last_weapons = weapons
+            except Exception as wpn_err:
+                logger.warning("[%s] Weapons detector error: %s", self.camera_id, wpn_err)
+                weapons = self._last_weapons
         else:
             tracked = self._last_tracked
             weapons = self._last_weapons
-            enhanced = frame   # use raw for display on non-detect frames
+            enhanced = frame
 
         # --- Virtual fence ---
-        fence_events = self._fence.check(tracked)
+        try:
+            fence_events = self._fence.check(tracked)
+        except Exception:
+            fence_events = []
 
         # --- Active zones mapping ---
         active_zones: dict[int, list[str]] = {}
         for fe in fence_events:
             active_zones.setdefault(fe.track_id, []).append(fe.zone_name)
 
-        # --- Activity ---
-        activity_events = self._activity.analyze(tracked, active_zones)
+        # --- Activity analysis ---
+        try:
+            activity_events = self._activity.analyze(tracked, active_zones)
+        except Exception:
+            activity_events = []
 
-        # --- Face recognition (per Person, executed every 4th frame for high FPS) ---
+        # --- Face recognition (per Person) ---
         face_results: list[FaceResult] = []
         if self._face_recognizer and (self._frame_count % 4 == 0):
             for obj in tracked:
                 if obj.label == "Person":
-                    crop, offset = self._crop_person(enhanced, obj.bbox)
-                    if crop is not None:
-                        faces = self._face_recognizer.recognize(crop, offset)
-                        face_results.extend(faces)
+                    try:
+                        crop, offset = self._crop_person(enhanced, obj.bbox)
+                        if crop is not None:
+                            faces = self._face_recognizer.recognize(crop, offset)
+                            face_results.extend(faces)
+                    except Exception as fr_err:
+                        logger.debug("[%s] Face recognition error: %s", self.camera_id, fr_err)
 
-        # --- ANPR (per Vehicle or direct Checkpost scan) ---
+        # --- ANPR ---
         plate_results: list[PlateResult] = []
         if run_detection:
-            # 1. Vehicle crop recognition
-            for obj in tracked:
-                if obj.label in ("Car", "Truck", "Bus", "Motorcycle"):
-                    pr = self._get_plate_reader().read(enhanced, obj.bbox, obj.label)
-                    if pr:
-                        plate_results.append(pr)
-            # 2. Checkpost / handheld plate fallback scan (every 4th frame)
-            if not plate_results and (self._frame_count % 4 == 0):
-                pr_direct = self._get_plate_reader().read_from_frame(enhanced)
-                if pr_direct:
-                    plate_results.append(pr_direct)
+            try:
+                for obj in tracked:
+                    if obj.label in ("Car", "Truck", "Bus", "Motorcycle"):
+                        pr = self._get_plate_reader().read(enhanced, obj.bbox, obj.label)
+                        if pr:
+                            plate_results.append(pr)
+                if not plate_results and (self._frame_count % 4 == 0):
+                    pr_direct = self._get_plate_reader().read_from_frame(enhanced)
+                    if pr_direct:
+                        plate_results.append(pr_direct)
+            except Exception as anpr_err:
+                logger.debug("[%s] ANPR error: %s", self.camera_id, anpr_err)
 
         # --- Emit events ---
-        if fence_events:
-            self._event_manager.receive(fence_events)
-        for w in weapons:
-            self._event_manager.receive_weapon(self.camera_id, w)
-        for a in activity_events:
-            self._event_manager.receive_activity(a)
-        for f in face_results:
-            self._event_manager.receive_face(self.camera_id, f)
-        for p in plate_results:
-            self._event_manager.receive_plate(self.camera_id, p)
-        if is_night and run_detection and tracked:
-            self._event_manager.receive_night_movement(self.camera_id, len(tracked))
+        try:
+            if fence_events:
+                self._event_manager.receive(fence_events)
+            for w in weapons:
+                self._event_manager.receive_weapon(self.camera_id, w)
+            for a in activity_events:
+                self._event_manager.receive_activity(a)
+            for f in face_results:
+                self._event_manager.receive_face(self.camera_id, f)
+            for p in plate_results:
+                self._event_manager.receive_plate(self.camera_id, p)
+            if is_night and run_detection and tracked:
+                self._event_manager.receive_night_movement(self.camera_id, len(tracked))
+        except Exception as evt_err:
+            logger.debug("[%s] Event emit error: %s", self.camera_id, evt_err)
 
         # --- Cache latest overlays for live 30 FPS rendering ---
         with self._overlay_lock:

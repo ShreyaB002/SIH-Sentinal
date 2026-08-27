@@ -101,19 +101,13 @@ class Tracker:
 
     @staticmethod
     def from_track_results(results, label_overrides: dict[int, str]) -> list[TrackedObject]:
-        """Convert raw Ultralytics track results into TrackedObject list.
-
-        Called by FramePipeline after model.track() when tracking is enabled.
-        """
+        """Convert raw Ultralytics track results into TrackedObject list."""
         tracked: list[TrackedObject] = []
         for result in results:
             if result.boxes is None:
                 continue
-            for box in result.boxes:
-                # track_id is None when the object has not yet been assigned
-                if box.id is None:
-                    continue
-                track_id = int(box.id[0])
+            for i, box in enumerate(result.boxes):
+                track_id = int(box.id[0]) if box.id is not None else (i + 1)
                 cls_id = int(box.cls[0])
                 conf = float(box.conf[0])
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -131,3 +125,4 @@ class Tracker:
                     )
                 )
         return tracked
+
