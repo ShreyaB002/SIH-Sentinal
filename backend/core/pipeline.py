@@ -19,6 +19,7 @@ raw frame
 from __future__ import annotations
 
 import logging
+import threading
 from typing import TYPE_CHECKING, Optional
 
 import cv2
@@ -180,14 +181,20 @@ class FramePipeline:
                         faces = self._face_recognizer.recognize(crop, offset)
                         face_results.extend(faces)
 
-        # --- ANPR (per Vehicle) ---
+        # --- ANPR (per Vehicle or direct Checkpost scan) ---
         plate_results: list[PlateResult] = []
         if run_detection:
+            # 1. Vehicle crop recognition
             for obj in tracked:
                 if obj.label in ("Car", "Truck", "Bus", "Motorcycle"):
                     pr = self._get_plate_reader().read(enhanced, obj.bbox, obj.label)
                     if pr:
                         plate_results.append(pr)
+            # 2. Checkpost / handheld plate fallback scan (every 4th frame)
+            if not plate_results and (self._frame_count % 4 == 0):
+                pr_direct = self._get_plate_reader().read_from_frame(enhanced)
+                if pr_direct:
+                    plate_results.append(pr_direct)
 
         # --- Emit events ---
         if fence_events:

@@ -193,6 +193,41 @@ class PlateReader:
             plate_bbox=(plate_x1, plate_y1, plate_x2, plate_y2),
         )
 
+    def read_from_frame(self, frame: np.ndarray) -> Optional[PlateResult]:
+        """Read license plate text directly from the full frame (for checkposts and handheld tests)."""
+        if self._ocr is None:
+            self._load_ocr()
+        if self._ocr is None:
+            return None
+
+        try:
+            result = self._ocr.ocr(frame, cls=True)
+            if not result or not result[0]:
+                return None
+
+            for line in result[0]:
+                if line and len(line) >= 2:
+                    box = line[0]
+                    text = str(line[1][0])
+                    conf = float(line[1][1])
+                    cleaned = self._clean_plate(text)
+                    # Check for valid plate format (e.g. HR98AA0000, DL3C, MH12)
+                    if cleaned and len(cleaned) >= 5 and conf >= 0.45:
+                        pts = np.array(box, dtype=np.int32)
+                        x1, y1 = int(pts[:, 0].min()), int(pts[:, 1].min())
+                        x2, y2 = int(pts[:, 0].max()), int(pts[:, 1].max())
+                        logger.info("ANPR Scan: '%s' (conf: %.0f%%)", cleaned, conf * 100)
+                        return PlateResult(
+                            plate_text=cleaned,
+                            raw_text=text,
+                            confidence=conf,
+                            vehicle_bbox=(x1, y1, x2, y2),
+                            plate_bbox=(x1, y1, x2, y2),
+                        )
+        except Exception as exc:
+            logger.debug("Direct ANPR OCR error: %s", exc)
+        return None
+
     @staticmethod
     def _preprocess_plate(crop: np.ndarray) -> np.ndarray:
         """Resize and enhance plate crop for OCR accuracy."""
