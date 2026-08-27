@@ -63,13 +63,10 @@
       // Skip keep-alive pings and info messages
       if (!event || event.event_type === 'PING' || event.event_type === 'INFO') return;
 
-      // Trigger tile glow
-      if (event.camera_id && typeof window.triggerTileAlert === 'function') {
-        window.triggerTileAlert(event.camera_id);
-      }
-
-      // Append to event log sidebar
-      if (typeof window.appendEventLog === 'function') {
+      // Dispatch to event log and camera grid
+      if (window.eventLog && typeof window.eventLog.addEvent === 'function') {
+        window.eventLog.addEvent(event);
+      } else if (typeof window.appendEventLog === 'function') {
         window.appendEventLog(event);
       }
     });

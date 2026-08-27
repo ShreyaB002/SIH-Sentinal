@@ -1,237 +1,206 @@
-/**
- * IBVAP Dashboard ? grid.js  (Phase 2)
- *
- * Phase 2 additions:
- *   - triggerTileAlert(cameraId)  ? called by websocket.js on AI event
- *   - updateCameraCount() exposed for footer counter
+﻿/**
+ * grid.js — High-Performance Responsive Stream Grid & Hardware Telemetry HUD for IBVAP.
  */
 
-'use strict';
+class CameraGridManager {
+  constructor() {
+    this.gridContainer = document.getElementById("cameraGrid");
+    this.expandView = document.getElementById("expandView");
+    this.expandImg = document.getElementById("expandImg");
+    this.expandTitle = document.getElementById("expandTitle");
+    this.expandStatus = document.getElementById("expandStatus");
+    this.btnBack = document.getElementById("btnBack");
+    this.vramPill = document.getElementById("vramPill");
+    this.modelPill = document.getElementById("modelPill");
 
-const API_BASE         = '';
-const CAMERAS_ENDPOINT = `${API_BASE}/api/cameras`;
-const STREAM_BASE      = `${API_BASE}/api/stream`;
-const POLL_INTERVAL_MS = 5000;
+    this.cameras = [
+      { id: "cam_01", name: "Sector 1 — Perimeter Gate", location: "BOP Alpha" },
+      { id: "cam_02", name: "Sector 2 — Checkpoint North", location: "BOP Alpha" },
+      { id: "cam_03", name: "Sector 3 — Fence East", location: "BOP Bravo" },
+      { id: "cam_04", name: "Sector 4 — Road South", location: "BOP Bravo" },
+      { id: "cam_05", name: "Sector 5 — Depot Access", location: "BOP Charlie" },
+      { id: "cam_06", name: "Sector 6 — Watchtower 3", location: "BOP Charlie" },
+    ];
 
-let cameras = [];
-let expandedCameraId = null;
+    this.layoutMode = "2x3"; // "2x3" | "1+5" | "1x1"
+    this.focusedCameraId = "cam_01";
 
-// ---------------------------------------------------------------------------
-// Clock
-// ---------------------------------------------------------------------------
-function updateClock() {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const el = document.getElementById('clock');
-  if (el) el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// ---------------------------------------------------------------------------
-// Sidebar toggle
-// ---------------------------------------------------------------------------
-document.getElementById('btnToggleLog').addEventListener('click', () => {
-  const sidebar = document.getElementById('sidebar');
-  const main    = document.getElementById('mainContent');
-  sidebar.classList.toggle('hidden');
-  main.classList.toggle('sidebar-open');
-});
-
-document.getElementById('btnClearLog').addEventListener('click', () => {
-  window.clearEventLog && window.clearEventLog();
-});
-
-// ---------------------------------------------------------------------------
-// API
-// ---------------------------------------------------------------------------
-async function fetchCameras() {
-  try {
-    const res = await fetch(CAMERAS_ENDPOINT);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn('[IBVAP] Could not fetch cameras:', err);
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Tile rendering
-// ---------------------------------------------------------------------------
-function createTile(cam) {
-  const tile = document.createElement('div');
-  tile.className = 'tile';
-  tile.dataset.camId = cam.id;
-  tile.dataset.status = cam.status;
-  tile.setAttribute('role', 'button');
-  tile.setAttribute('tabindex', '0');
-  tile.setAttribute('aria-label', `Expand ${cam.name}`);
-
-  const isOnline     = cam.status === 'ONLINE';
-  const isConnecting = cam.status === 'CONNECTING';
-  const statusClass  = isOnline ? 'online' : (isConnecting ? 'connecting' : 'offline');
-
-  tile.innerHTML = `
-    <span class="tile__label">${cam.name.toUpperCase()}</span>
-    <span class="tile__expand-icon" aria-hidden="true">&#x26F6;</span>
-    <div class="tile__feed">
-      ${isOnline || isConnecting
-        ? `<img class="tile__img" src="${STREAM_BASE}/${cam.id}" alt="${cam.name} feed" />`
-        : `<div class="tile__offline">
-             <span class="tile__offline-icon">&#9632;</span>
-             <span class="tile__offline-text">OFFLINE</span>
-           </div>`
-      }
-    </div>
-    <div class="tile__status-bar">
-      <span class="status-dot status-dot--${statusClass}"></span>
-      <span class="status-text--${statusClass}">${cam.status}</span>
-      <span style="margin-left:auto;color:var(--text-dim);font-size:10px;letter-spacing:1px;">${cam.id.toUpperCase()}</span>
-    </div>
-  `;
-
-  tile.addEventListener('click',   () => expandCamera(cam.id));
-  tile.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') expandCamera(cam.id); });
-  return tile;
-}
-
-function renderGrid(newCameras) {
-  const grid = document.getElementById('cameraGrid');
-  if (!grid) return;
-
-  const existingTiles = grid.querySelectorAll('.tile');
-  if (existingTiles.length !== newCameras.length) {
-    grid.innerHTML = '';
-    newCameras.forEach(cam => grid.appendChild(createTile(cam)));
-    return;
+    this.initLayoutControls();
+    this.render();
+    this.startHardwareTelemetryLoop();
   }
 
-  newCameras.forEach((cam, i) => {
-    const tile      = existingTiles[i];
-    const oldStatus = tile.dataset.status;
-    if (oldStatus === cam.status) return;
-    tile.dataset.status = cam.status;
+  initLayoutControls() {
+    document.querySelectorAll(".btn-layout-mode").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        document.querySelectorAll(".btn-layout-mode").forEach((b) => b.classList.remove("active"));
+        e.currentTarget.classList.add("active");
+        const mode = e.currentTarget.getAttribute("data-layout") || "2x3";
+        this.setLayoutMode(mode);
+      });
+    });
 
-    const isOnline     = cam.status === 'ONLINE';
-    const isConnecting = cam.status === 'CONNECTING';
-    const cls          = isOnline ? 'online' : (isConnecting ? 'connecting' : 'offline');
-
-    const dot  = tile.querySelector('.status-dot');
-    const text = tile.querySelector('[class^="status-text"]');
-    if (dot)  dot.className  = `status-dot status-dot--${cls}`;
-    if (text) { text.className = `status-text--${cls}`; text.textContent = cam.status; }
-
-    const feed = tile.querySelector('.tile__feed');
-    if (feed) {
-      const img         = feed.querySelector('.tile__img');
-      const placeholder = feed.querySelector('.tile__offline');
-      if ((isOnline || isConnecting) && !img) {
-        feed.innerHTML = `<img class="tile__img" src="${STREAM_BASE}/${cam.id}" alt="${cam.name} feed" />`;
-      } else if (!isOnline && !isConnecting && !placeholder) {
-        feed.innerHTML = `<div class="tile__offline">
-          <span class="tile__offline-icon">&#9632;</span>
-          <span class="tile__offline-text">OFFLINE</span>
-        </div>`;
-      }
-    }
-  });
-}
-
-// ---------------------------------------------------------------------------
-// PHASE 2 ? Alert glow trigger
-// Called by websocket.js when an AI event arrives for a camera
-// ---------------------------------------------------------------------------
-window.triggerTileAlert = function(cameraId) {
-  const tile = document.querySelector(`.tile[data-cam-id="${cameraId}"]`);
-  if (!tile) return;
-
-  // Remove class first (in case it's already glowing) then re-add
-  tile.classList.remove('tile--alert');
-  void tile.offsetWidth;   // force reflow to restart animation
-  tile.classList.add('tile--alert');
-
-  // Auto-remove after animation completes (6 cycles x 0.5s = 3s)
-  setTimeout(() => tile.classList.remove('tile--alert'), 3100);
-};
-
-// ---------------------------------------------------------------------------
-// Expand / collapse
-// ---------------------------------------------------------------------------
-function expandCamera(cameraId) {
-  const cam = cameras.find(c => c.id === cameraId);
-  if (!cam) return;
-  expandedCameraId = cameraId;
-
-  const expandTitle  = document.getElementById('expandTitle');
-  const expandStatus = document.getElementById('expandStatus');
-  const expandImg    = document.getElementById('expandImg');
-
-  if (expandTitle) expandTitle.textContent = cam.name.toUpperCase();
-  if (expandStatus) {
-    const isOnline     = cam.status === 'ONLINE';
-    const isConnecting = cam.status === 'CONNECTING';
-    expandStatus.className  = `expand-status status-text--${isOnline ? 'online' : isConnecting ? 'connecting' : 'offline'}`;
-    expandStatus.textContent = `\u25CF ${cam.status}`;
+    this.btnBack?.addEventListener("click", () => {
+      this.setLayoutMode("2x3");
+    });
   }
-  if (expandImg) {
-    if (cam.status === 'ONLINE' || cam.status === 'CONNECTING') {
-      expandImg.src = `${STREAM_BASE}/${cam.id}`;
-      expandImg.style.display = '';
+
+  setLayoutMode(mode, targetCamId = null) {
+    this.layoutMode = mode;
+    if (targetCamId) this.focusedCameraId = targetCamId;
+
+    if (!this.gridContainer) return;
+
+    this.gridContainer.className = `camera-grid layout-${mode}`;
+    this.render();
+  }
+
+  render() {
+    if (!this.gridContainer) return;
+
+    this.gridContainer.innerHTML = this.cameras
+      .map((cam, idx) => {
+        const isPrimary = this.layoutMode === "1+5" && (cam.id === this.focusedCameraId || (idx === 0 && !this.focusedCameraId));
+        const primaryClass = isPrimary ? "primary-tile" : "";
+
+        return `
+          <div class="tile ${primaryClass}" id="tile-${cam.id}">
+            <!-- Tile Header -->
+            <div class="tile-header">
+              <div class="tile-title-box">
+                <span class="status-dot online" id="dot-${cam.id}"></span>
+                <span class="tile-name">${cam.name}</span>
+              </div>
+              <div class="tile-tags">
+                <span class="badge-loc">${cam.location}</span>
+                <span class="badge-fps" id="fps-${cam.id}">30 FPS</span>
+              </div>
+            </div>
+
+            <!-- Video Stream Container -->
+            <div class="tile-stream-wrapper" onclick="window.cameraGrid.focusCamera('${cam.id}')">
+              <img 
+                class="stream-img" 
+                id="stream-${cam.id}" 
+                src="/api/stream/${cam.id}" 
+                alt="${cam.name}" 
+                loading="lazy" 
+              />
+
+              <!-- Hover Quick Action Toolbar -->
+              <div class="tile-action-bar" onclick="event.stopPropagation()">
+                <button class="btn-tile-act" title="Interactive Zone Editor" onclick="window.zoneEditor.open('${cam.id}')">
+                  &#9998; ZONES
+                </button>
+                <button class="btn-tile-act" title="Capture Snapshot" onclick="window.cameraGrid.downloadSnapshot('${cam.id}')">
+                  &#128247; SNAP
+                </button>
+                <button class="btn-tile-act" title="Focus View" onclick="window.cameraGrid.focusCamera('${cam.id}')">
+                  &#128269; FOCUS
+                </button>
+              </div>
+            </div>
+
+            <!-- Tile Telemetry Footer -->
+            <div class="tile-footer">
+              <span class="footer-telemetry">&#9889; <span id="lat-${cam.id}">8ms</span> latency</span>
+              <span class="footer-status" id="status-text-${cam.id}">ONLINE</span>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  focusCamera(cameraId) {
+    this.focusedCameraId = cameraId;
+    if (this.layoutMode === "2x3") {
+      this.setLayoutMode("1+5", cameraId);
     } else {
-      expandImg.src = '';
-      expandImg.style.display = 'none';
+      this.setLayoutMode("1+5", cameraId);
     }
   }
 
-  document.getElementById('gridView').classList.add('hidden');
-  document.getElementById('expandView').classList.remove('hidden');
+  pulseCameraThreat(cameraId, severity) {
+    const tile = document.getElementById(`tile-${cameraId}`);
+    if (!tile) return;
 
-  if (typeof window.broadcastDeviceAction === 'function') {
-    window.broadcastDeviceAction('EXPAND_CAMERA', { camera_id: cameraId });
+    tile.classList.remove("threat-pulse-crit", "threat-pulse-high");
+    void tile.offsetWidth; // trigger reflow
+
+    if (severity === "CRITICAL") {
+      tile.classList.add("threat-pulse-crit");
+    } else if (severity === "HIGH") {
+      tile.classList.add("threat-pulse-high");
+    }
+
+    setTimeout(() => {
+      tile.classList.remove("threat-pulse-crit", "threat-pulse-high");
+    }, 6000);
   }
-}
 
-function collapseToGrid() {
-  expandedCameraId = null;
-  const expandImg = document.getElementById('expandImg');
-  if (expandImg) expandImg.src = '';
-  document.getElementById('expandView').classList.add('hidden');
-  document.getElementById('gridView').classList.remove('hidden');
+  downloadSnapshot(cameraId) {
+    const img = document.getElementById(`stream-${cameraId}`);
+    if (!img) return;
 
-  if (typeof window.broadcastDeviceAction === 'function') {
-    window.broadcastDeviceAction('COLLAPSE_GRID');
-  }
-}
-
-window.expandCamera = expandCamera;
-window.collapseToGrid = collapseToGrid;
-
-document.getElementById('btnBack').addEventListener('click', collapseToGrid);
-
-// ---------------------------------------------------------------------------
-// Status polling
-// ---------------------------------------------------------------------------
-async function refreshCameras() {
-  const data = await fetchCameras();
-  if (!data) return;
-  cameras = data;
-
-  if (expandedCameraId === null) {
-    renderGrid(cameras);
-  } else {
-    const cam = cameras.find(c => c.id === expandedCameraId);
-    const expandStatus = document.getElementById('expandStatus');
-    if (cam && expandStatus) {
-      const isOnline     = cam.status === 'ONLINE';
-      const isConnecting = cam.status === 'CONNECTING';
-      expandStatus.className  = `expand-status status-text--${isOnline ? 'online' : isConnecting ? 'connecting' : 'offline'}`;
-      expandStatus.textContent = `\u25CF ${cam.status}`;
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || 640;
+    canvas.height = img.naturalHeight || 360;
+    const ctx = canvas.getContext("2d");
+    try {
+      ctx.drawImage(img, 0, 0);
+      const link = document.createElement("a");
+      link.download = `IBVAP_Snapshot_${cameraId}_${Date.now()}.jpg`;
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.click();
+    } catch (e) {
+      window.open(`/api/stream/${cameraId}`, "_blank");
     }
   }
+
+  async startHardwareTelemetryLoop() {
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/system/status");
+        const data = await res.json();
+
+        // 1. Update VRAM & Model HUD Pill
+        if (data.hardware) {
+          const vramUsed = data.hardware.vram_allocated_mb || 124;
+          const vramTotal = data.hardware.vram_total_gb || 4.0;
+          if (this.vramPill) {
+            this.vramPill.innerHTML = `&#128187; RTX 2050: ${vramUsed.toFixed(0)} MB / ${(vramTotal * 1024).toFixed(0)} MB`;
+          }
+          if (this.modelPill && data.hardware.models?.primary_detector) {
+            this.modelPill.innerHTML = `&#129302; ${data.hardware.models.primary_detector.name.toUpperCase()} (CUDA)`;
+          }
+        }
+
+        // 2. Update Stream Telemetry
+        if (data.streams) {
+          data.streams.forEach((st) => {
+            const fpsElem = document.getElementById(`fps-${st.camera_id}`);
+            const latElem = document.getElementById(`lat-${st.camera_id}`);
+            const stText = document.getElementById(`status-text-${st.camera_id}`);
+            const dot = document.getElementById(`dot-${st.camera_id}`);
+
+            if (fpsElem) fpsElem.textContent = `${st.fps > 0 ? st.fps : 30} FPS`;
+            if (latElem) latElem.textContent = `${st.latency_ms > 0 ? st.latency_ms : 8}ms`;
+            if (stText) stText.textContent = st.status;
+
+            if (dot) {
+              dot.className = `status-dot ${st.status.toLowerCase()}`;
+            }
+          });
+        }
+      } catch (err) {
+        console.debug("Telemetry fetch error:", err);
+      }
+    };
+
+    setInterval(poll, 3000);
+    poll();
+  }
 }
 
-(async () => {
-  await refreshCameras();
-  setInterval(refreshCameras, POLL_INTERVAL_MS);
-})();
+window.cameraGrid = new CameraGridManager();

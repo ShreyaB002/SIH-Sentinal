@@ -169,3 +169,83 @@ async def mjpeg_stream(camera_id: str, request: Request) -> StreamingResponse:
         frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@router.get("/system/status", summary="Real-time GPU VRAM, active model, and stream telemetry")
+async def system_status(request: Request) -> JSONResponse:
+    """Return real-time hardware, model, and stream telemetry."""
+    from backend.core.model_manager import ModelManager
+    manager = request.app.state.stream_manager
+    mm = ModelManager()
+
+    # Stream health metrics
+    health_list = []
+    for s in manager.get_streams():
+        health_list.append(s.get_health())
+
+    status_data = {
+        "hardware": mm.get_status(),
+        "streams": health_list,
+        "total_streams": len(health_list),
+    }
+    return JSONResponse(content=status_data)
+
+
+@router.get("/zones/{camera_id}", summary="Get polygon zones for a camera")
+async def get_zones(camera_id: str) -> JSONResponse:
+    """Get active virtual fence zones for a camera."""
+    from backend.config import ZONES
+    zones = ZONES.get(camera_id, [])
+    return JSONResponse(content={"camera_id": camera_id, "zones": zones})
+
+
+@router.post("/zones/{camera_id}", summary="Update polygon zones for a camera in real time")
+async def update_zones(camera_id: str, request: Request) -> JSONResponse:
+    """Save new polygon zones for a camera and update running pipeline."""
+    from backend.config import ZONES
+    from backend.core.fence import VirtualFence
+    try:
+        body = await request.json()
+        new_zones = body.get("zones", [])
+
+        # Update global config dictionary
+        ZONES[camera_id] = new_zones
+
+        # Update running pipeline instance if active
+        manager = request.app.state.stream_manager
+        stream = manager.get_stream(camera_id)
+        if stream and hasattr(stream, "_pipeline") and stream._pipeline:
+            stream._pipeline._fence = VirtualFence(camera_id=camera_id, zones=new_zones)
+            logger.info("[%s] VirtualFence zones updated live from Web UI: %d zone(s)", camera_id, len(new_zones))
+
+        return JSONResponse(content={"status": "success", "camera_id": camera_id, "zones_count": len(new_zones)})
+    except Exception as exc:
+        logger.error("Failed to update zones for %s: %s", camera_id, exc)
+        return JSONResponse(content={"status": "error", "message": str(exc)}, status_code=400)
+
+
+@router.get("/plates", summary="Get recent ANPR detected vehicle plates")
+async def get_plates(request: Request) -> JSONResponse:
+    """Return recent license plate events."""
+    try:
+        manager = request.app.state.stream_manager
+        # Fetch from database if available
+        from backend.config import EVENTS_DB_PATH
+        from backend.core.database import Database
+        db = Database(EVENTS_DB_PATH)
+        records = db.query(event_type="PLATE", limit=100)
+        plates = [
+            {
+                "id": r.id,
+                "camera_id": r.camera_id,
+                "plate_text": r.details.get("plate", r.label),
+                "confidence": r.confidence,
+                "vehicle_type": r.details.get("vehicle", "Car"),
+                "timestamp": r.timestamp,
+            }
+            for r in records
+        ]
+        return JSONResponse(content=plates)
+    except Exception as exc:
+        logger.debug("Plate query error: %s", exc)
+        return JSONResponse(content=[])

@@ -1,110 +1,255 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IBVAP ? Intelligent Border Video Analytics Platform</title>
+  <title>IBVAP — Intelligent Border Video Analytics Platform</title>
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
 
   <!-- ================================================================ -->
-  <!-- HEADER                                                            -->
+  <!-- 1. TACTICAL COMMAND HEADER & HUD                                 -->
   <!-- ================================================================ -->
   <header class="header">
+    <!-- Brand / Title -->
     <div class="header__brand">
-      <span class="header__logo">&#9726;</span>
+      <span class="header__logo">&#9670;</span>
       <span class="header__title">IBVAP</span>
-      <span class="header__subtitle">Intelligent Border Video Analytics Platform</span>
+      <span class="header__subtitle">Border Surveillance C2 System</span>
     </div>
+
+    <!-- Center HUD: Layout Modes & Hardware VRAM Telemetry -->
+    <div class="header__center-hud">
+      <!-- Layout Modes -->
+      <div class="layout-group" title="Select Stream Layout">
+        <button class="btn-layout-mode active" data-layout="2x3">&#8862; 2x3 MATRIX</button>
+        <button class="btn-layout-mode" data-layout="1+5">&#9638; 1+5 FOCUS</button>
+        <button class="btn-layout-mode" data-layout="1x1">&#9633; 1x1 CINEMA</button>
+      </div>
+
+      <!-- Hardware VRAM & Model Telemetry HUD -->
+      <span class="hud-pill vram" id="vramPill">&#128187; RTX 2050: 124 MB / 4096 MB</span>
+      <span class="hud-pill model" id="modelPill">&#129302; YOLO26M (CUDA)</span>
+    </div>
+
+    <!-- Right Controls: Watchlist, ANPR, Zones, Audio, Alerts -->
     <div class="header__meta">
-      <span class="header__ws-status" id="wsStatus" title="AI Alert Stream">&#9679; CONNECTING</span>
-      <span id="sessionSyncBadge" style="font-size:11px;font-weight:600;color:var(--text-sec);letter-spacing:1px;padding:3px 8px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid var(--border);">&#128101; 1 DEVICE SYNCED</span>
-      <span class="header__time" id="clock">--:--:--</span>
-      <span class="header__badge">PHASE 4 &bull; FULL AI SUITE</span>
-      <button class="btn-toggle-log" id="btnToggleWatchlist" title="Manage Watchlist" style="border-color:var(--green);color:var(--green)">&#128100; WATCHLIST</button>
-      <button class="btn-toggle-log" id="btnToggleLog" title="Toggle event log">&#9776; EVENTS</button>
+      <button class="btn-tactical" id="btnAudioToggle" title="Toggle Alert Sound" style="color:var(--green)">
+        &#128266; AUDIO ON
+      </button>
+      <button class="btn-tactical" id="btnToggleWatchlist" title="FRS Watchlist Hub">
+        &#128100; WATCHLIST
+      </button>
+      <button class="btn-tactical" id="btnToggleANPR" title="ANPR License Plate Log">
+        &#128663; ANPR LOG
+      </button>
+      <button class="btn-tactical" id="btnOpenZoneEditor" title="Interactive Polygon Zone Editor">
+        &#9998; ZONE EDITOR
+      </button>
+      <button class="btn-tactical btn-alerts" id="btnToggleLog" title="Toggle Real-Time Security Incident Stream">
+        &#9888; INCIDENTS
+        <span class="badge-unread hidden" id="unreadAlertBadge">0</span>
+      </button>
+      <span class="clock-display" id="clock">--:--:--</span>
     </div>
   </header>
 
   <!-- ================================================================ -->
-  <!-- MAIN CONTENT                                                      -->
+  <!-- 2. MAIN SURVEILLANCE MATRIX                                      -->
   <!-- ================================================================ -->
   <main class="main" id="mainContent">
-
-    <!-- 6-camera grid (default view) -->
-    <section class="grid-view" id="gridView">
-      <div class="camera-grid" id="cameraGrid">
-        <!-- Tiles injected by grid.js -->
-      </div>
-    </section>
-
-    <!-- Expanded single-camera view -->
-    <section class="expand-view hidden" id="expandView">
-      <div class="expand-header">
-        <button class="btn-back" id="btnBack" title="Back to grid">
-          &#8592; Back to Grid
-        </button>
-        <span class="expand-title" id="expandTitle">Camera</span>
-        <span class="expand-status" id="expandStatus"></span>
-      </div>
-      <div class="expand-feed">
-        <img class="expand-img" id="expandImg" src="" alt="Camera feed" />
-      </div>
-    </section>
-
+    <div class="camera-grid layout-2x3" id="cameraGrid">
+      <!-- Camera Tiles Injected by grid.js -->
+    </div>
   </main>
 
   <!-- ================================================================ -->
-  <!-- EVENT LOG SIDEBAR                                                 -->
+  <!-- 3. REAL-TIME TACTICAL INCIDENTS SIDEBAR                          -->
   <!-- ================================================================ -->
   <aside class="sidebar hidden" id="sidebar">
     <div class="sidebar__header">
-      <span class="sidebar__title">&#9888; REAL-TIME ALERT LOG</span>
-      <button class="sidebar__clear" id="btnClearLog" title="Clear log">&#10005;</button>
+      <span class="sidebar__title">&#9888; TACTICAL INCIDENT STREAM</span>
+      <button class="btn-tactical" id="btnClearLog" title="Clear incident history" style="font-size:10px;padding:2px 6px;">CLEAR</button>
     </div>
+
+    <!-- Severity Filter Bar -->
+    <div class="severity-filter-bar">
+      <button class="sev-pill active" data-sev="ALL">ALL</button>
+      <button class="sev-pill" data-sev="CRITICAL" style="color:var(--red)">CRITICAL</button>
+      <button class="sev-pill" data-sev="HIGH" style="color:var(--amber)">HIGH</button>
+      <button class="sev-pill" data-sev="MEDIUM" style="color:var(--cyan)">MEDIUM</button>
+      <button class="sev-pill" data-sev="LOW">LOW</button>
+    </div>
+
+    <!-- Incident Stream Body -->
     <div class="sidebar__body" id="eventLogBody">
       <div class="event-log-empty" id="eventLogEmpty">
-        No events yet. Surveillance models active...
+        No security incidents logged yet. AI models active...
       </div>
     </div>
   </aside>
 
   <!-- ================================================================ -->
-  <!-- WATCHLIST MODAL                                                   -->
+  <!-- 4. FRS SUSPECT WATCHLIST MODAL                                    -->
   <!-- ================================================================ -->
-  <div class="watchlist-modal hidden" id="watchlistModal" style="position:fixed;top:65px;right:20px;width:380px;max-height:80vh;background:var(--bg-panel);border:1px solid var(--border-hi);box-shadow:0 8px 32px rgba(0,0,0,0.8);border-radius:8px;z-index:300;display:flex;flex-direction:column;overflow:hidden;">
-    <div style="padding:12px 16px;background:#111927;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-weight:700;letter-spacing:1px;color:var(--green);font-size:13px;">&#128100; FRS WATCHLIST TARGETS</span>
-      <button id="btnCloseWatchlist" style="background:none;border:none;color:var(--text-sec);font-size:16px;cursor:pointer;">&#10005;</button>
-    </div>
-    <div style="padding:14px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px;">
-      <div id="watchlistItems" style="max-height:220px;overflow-y:auto;">
-        <!-- Injected by watchlist.js -->
+  <div class="modal-overlay hidden" id="watchlistModal">
+    <div class="modal-dialog" style="width: 480px;">
+      <div class="modal-header">
+        <span class="modal-title" style="color:var(--green)">&#128100; FRS SUSPECT WATCHLIST</span>
+        <button class="modal-close" id="btnCloseWatchlist">&times;</button>
       </div>
-      <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
-      <form id="watchlistForm" style="display:flex;flex-direction:column;gap:8px;">
-        <span style="font-size:11px;font-weight:700;color:var(--text-sec);letter-spacing:1px;">REGISTER NEW TARGET FACE:</span>
-        <input type="text" id="wlName" placeholder="Person / Suspect Name" required style="background:#0a0d12;border:1px solid var(--border);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;" />
-        <input type="file" id="wlImage" accept="image/*" required style="font-size:11px;color:var(--text-sec);" />
-        <button type="submit" style="background:var(--accent);border:none;color:#fff;padding:8px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;margin-top:4px;">Register Face Embedding</button>
-        <div id="watchlistStatus" style="font-size:11px;text-align:center;min-height:16px;"></div>
-      </form>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;">
+        <!-- Registered Suspects List -->
+        <div id="watchlistItems" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
+          <!-- Injected by watchlist.js -->
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);" />
+
+        <!-- Suspect Registration Form -->
+        <form id="watchlistForm" style="display:flex;flex-direction:column;gap:10px;">
+          <span style="font-size:11px;font-weight:700;color:var(--text-sec);letter-spacing:0.5px;">REGISTER NEW SUSPECT / TARGET:</span>
+          <input 
+            type="text" 
+            id="wlName" 
+            placeholder="Target Full Name / Codename" 
+            required 
+            style="background:#080b10;border:1px solid var(--border);color:#fff;padding:8px 12px;border-radius:4px;font-size:12px;" 
+          />
+          <input 
+            type="file" 
+            id="wlImage" 
+            accept="image/*" 
+            required 
+            style="font-size:11px;color:var(--text-sec);" 
+          />
+          <button 
+            type="submit" 
+            style="background:var(--accent);border:none;color:#fff;padding:10px;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px;"
+          >
+            Register ArcFace 512-d Embedding
+          </button>
+          <div id="watchlistStatus" style="font-size:11px;text-align:center;min-height:16px;"></div>
+        </form>
+      </div>
     </div>
   </div>
 
   <!-- ================================================================ -->
-  <!-- FOOTER                                                            -->
+  <!-- 5. ANPR LICENSE PLATE LOG MODAL                                  -->
+  <!-- ================================================================ -->
+  <div class="modal-overlay hidden" id="anprModal">
+    <div class="modal-dialog" style="width: 720px;">
+      <div class="modal-header">
+        <span class="modal-title" style="color:var(--cyan)">&#128663; ANPR VEHICLE CHECKPOINT LOG</span>
+        <button class="modal-close" id="btnCloseANPR">&times;</button>
+      </div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:10px;justify-content:space-between;">
+          <input 
+            type="text" 
+            id="anprSearchInput" 
+            placeholder="Search license plate (e.g. RJ14, KA01)..." 
+            style="background:#080b10;border:1px solid var(--border);color:#fff;padding:6px 12px;border-radius:4px;width:280px;font-size:12px;" 
+          />
+          <div style="display:flex;gap:8px;">
+            <button class="btn-tactical" id="btnRefreshANPR">&#8635; REFRESH</button>
+            <button class="btn-tactical" id="btnExportANPRCSV" style="color:var(--green);border-color:var(--green)">&#128190; EXPORT CSV</button>
+          </div>
+        </div>
+        <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;">
+          <table style="width:100%;border-collapse:collapse;text-align:left;">
+            <thead>
+              <tr style="background:#090e17;border-bottom:1px solid var(--border);color:var(--text-sec);font-size:11px;">
+                <th style="padding:8px 12px;">PLATE NUMBER</th>
+                <th style="padding:8px 12px;">VEHICLE TYPE</th>
+                <th style="padding:8px 12px;">CAMERA</th>
+                <th style="padding:8px 12px;">OCR CONFIDENCE</th>
+                <th style="padding:8px 12px;">TIMESTAMP</th>
+              </tr>
+            </thead>
+            <tbody id="anprTableBody">
+              <!-- Injected by anpr_log.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- 6. IN-BROWSER INTERACTIVE ZONE POLYGON EDITOR MODAL               -->
+  <!-- ================================================================ -->
+  <div class="modal-overlay hidden" id="zoneEditorModal">
+    <div class="modal-dialog" style="width: 760px;">
+      <div class="modal-header">
+        <span class="modal-title" style="color:var(--amber)">&#9998; INTERACTIVE VIRTUAL FENCE ZONE EDITOR</span>
+        <button class="modal-close" id="btnCloseZoneEditor">&times;</button>
+      </div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <label style="font-size:11px;color:var(--text-sec);font-weight:700;">CAMERA:</label>
+            <select id="zoneCameraSelect" style="background:#080b10;border:1px solid var(--border);color:#fff;padding:4px 8px;border-radius:4px;font-size:12px;">
+              <option value="cam_01">Sector 1 — Perimeter Gate (cam_01)</option>
+              <option value="cam_02">Sector 2 — Checkpoint North (cam_02)</option>
+              <option value="cam_03">Sector 3 — Fence East (cam_03)</option>
+              <option value="cam_04">Sector 4 — Road South (cam_04)</option>
+              <option value="cam_05">Sector 5 — Depot Access (cam_05)</option>
+              <option value="cam_06">Sector 6 — Watchtower 3 (cam_06)</option>
+            </select>
+            <input 
+              type="text" 
+              id="zoneNameInput" 
+              value="Restricted Zone A" 
+              placeholder="Zone Name" 
+              style="background:#080b10;border:1px solid var(--border);color:#fff;padding:4px 8px;border-radius:4px;font-size:12px;width:160px;" 
+            />
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-tactical" id="btnClearZonePoints">CLEAR POINTS</button>
+            <button class="btn-tactical" id="btnResetZones">RESET DEFAULT</button>
+            <button class="btn-tactical" id="btnSaveZone" style="color:var(--green);border-color:var(--green)">SAVE ZONE</button>
+          </div>
+        </div>
+
+        <!-- Interactive Stream Canvas Container -->
+        <div style="position:relative;width:640px;height:360px;margin:0 auto;background:#000;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+          <img id="zoneStreamImg" src="" style="width:100%;height:100%;object-fit:contain;position:absolute;top:0;left:0;" />
+          <canvas id="zoneCanvas" width="640" height="360" style="position:absolute;top:0;left:0;cursor:crosshair;"></canvas>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+          <span style="color:var(--text-sec);">&#9432; Click on live stream to place polygon boundary vertices (min 3 points).</span>
+          <span id="zoneStatus" style="font-weight:700;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- 7. FOOTER                                                        -->
   <!-- ================================================================ -->
   <footer class="footer">
-    <span>IBVAP &bull; AI-Based Intelligent Video Analytics Platform for Border Surveillance</span>
-    <span id="footerEventCount">Events: 0</span>
+    <span>IBVAP &bull; Intelligent Border Video Analytics Platform &bull; Defense & Perimeter Security C2</span>
+    <span id="wsStatus" class="header__ws-status ws-connecting">&#9679; CONNECTING</span>
   </footer>
 
+  <!-- Scripts -->
   <script src="js/grid.js"></script>
   <script src="js/eventlog.js"></script>
   <script src="js/watchlist.js"></script>
+  <script src="js/anpr_log.js"></script>
+  <script src="js/zone_editor.js"></script>
   <script src="js/session.js"></script>
   <script src="js/websocket.js"></script>
+
+  <!-- Live Clock Script -->
+  <script>
+    setInterval(() => {
+      const el = document.getElementById("clock");
+      if (el) el.textContent = new Date().toLocaleTimeString();
+    }, 1000);
+  </script>
 </body>
 </html>
