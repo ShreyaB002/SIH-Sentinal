@@ -14,6 +14,7 @@ so GPU memory and state are isolated per camera.
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Optional
 
@@ -70,20 +71,25 @@ class WeaponsDetector:
             model_name, device, confidence, self._classes,
         )
 
+    _load_lock = threading.Lock()
+
     def _load_model(self) -> None:
-        """Lazy-load the YOLO-World model and set custom class vocabulary."""
-        try:
-            from ultralytics import YOLO
-            self._model = YOLO(self._model_name)
-            self._model.set_classes(self._classes)
-            self._model.to(self._device)
-            logger.info(
-                "YOLO-World weapons model loaded on %s: %s | classes: %s",
-                self._device, self._model_name, self._classes,
-            )
-        except Exception as exc:
-            logger.error("Failed to load YOLO-World model: %s", exc)
-            raise
+        """Lazy-load the YOLO-World model with thread lock protection."""
+        with self._load_lock:
+            if self._model is not None:
+                return
+            try:
+                from ultralytics import YOLO
+                self._model = YOLO(self._model_name)
+                self._model.set_classes(self._classes)
+                self._model.to(self._device)
+                logger.info(
+                    "YOLO-World weapons model loaded on %s: %s | classes: %s",
+                    self._device, self._model_name, self._classes,
+                )
+            except Exception as exc:
+                logger.error("Failed to load YOLO-World model: %s", exc)
+                raise
 
     def detect(self, frame: np.ndarray) -> list[WeaponDetection]:
         """Run weapons detection on a single BGR frame.
@@ -110,6 +116,7 @@ class WeaponsDetector:
                 source=frame,
                 conf=self._confidence,
                 device=self._device,
+                imgsz=640,
                 verbose=False,
             )
         except Exception as exc:
