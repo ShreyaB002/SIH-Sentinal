@@ -17,7 +17,7 @@ from backend.core.reid import OSNetExtractor, ReIDManager, ReIDMatchResult
 class TestPersonReID(unittest.TestCase):
     def setUp(self):
         self.reid_mgr = ReIDManager(
-            similarity_threshold=0.92,
+            similarity_threshold=0.98,
             max_gallery_size=10,
             expiration_seconds=2.0,
             device="auto",

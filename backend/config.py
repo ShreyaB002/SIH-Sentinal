@@ -29,9 +29,9 @@ DB_PATH: Path = PROJECT_ROOT / "data" / "events.db"
 
 CAMERAS: dict[str, dict] = {
     "cam_01": {
-        "name": "Live Webcam Feed (Device 1)",
-        "source": "1",
-        "type": "usb",
+        "name": "BOP Sector 1 (Perimeter Gate)",
+        "source": "data/videos/test_cctv.mp4",
+        "type": "file",
     },
     "cam_02": {
         "name": "BOP Sector 2 (Border Road)",
@@ -176,18 +176,18 @@ ZONES: dict[str, list[dict]] = {
 
 # Suppress repeat alerts for the same (camera, track_id, zone) within this
 # many seconds. Prevents alert flooding for a person standing in a zone.
-EVENT_COOLDOWN: float = 5.0
+EVENT_COOLDOWN: float = 10.0
+INTRUSION_MIN_CONFIDENCE: float = 0.55
 
 # ---------------------------------------------------------------------------
-# Weapons Detection  (Phase 3)
+# Weapons / Arms Detection (Disabled per Official SIH Border CCTV Problem Statement)
 # ---------------------------------------------------------------------------
 
-WEAPONS_ENABLED: bool = True
-WEAPONS_MODEL: str = "models/threat_detector.pt"  # Fine-tuned Threat/Weapon Detector (Gun, Knife, Explosive, Grenade)
-WEAPONS_CLASSES: list[str] = [
-    "Gun", "knife", "grenade", "explosion",
-]
-WEAPONS_CONFIDENCE: float = 0.18  # Calibrated for specialized threat model
+WEAPONS_ENABLED: bool = False
+WEAPONS_MODEL: str = "models/threat_detector.pt"
+WEAPONS_CLASSES: list[str] = []
+WEAPONS_CONFIDENCE: float = 0.99
+WEAPONS_ALERT_CONFIDENCE: float = 0.99
 
 # ---------------------------------------------------------------------------
 # Suspicious Activity  (Phase 3)
