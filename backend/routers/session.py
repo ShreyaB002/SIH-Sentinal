@@ -81,6 +81,7 @@ def sync_device_state(body: SyncActionRequest, request: Request):
 
 
 @router.delete("/{session_id}")
+@router.post("/{session_id}")
 def terminate_session(session_id: str, request: Request):
     sm = _get_sm(request)
     success = sm.terminate_session(session_id)
