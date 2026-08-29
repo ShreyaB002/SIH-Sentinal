@@ -1,22 +1,22 @@
 ﻿/**
- * grid.js — Clean 2x3 Surveillance Camera Grid Controller for IBVAP.
+ * grid.js — Clean 2x3 Surveillance Matrix Controller matching official mock.
  */
 
 class CameraGridController {
   constructor() {
-    this.gridContainer = document.getElementById("cameraMatrix");
-    this.singleView = document.getElementById("singleCameraView");
-    this.singleImg = document.getElementById("singleCamImg");
-    this.singleTitle = document.getElementById("singleCamTitle");
+    this.gridContainer = document.getElementById("cameraGrid");
+    this.singleView = document.getElementById("singleStreamView");
+    this.singleImg = document.getElementById("singleStreamImg");
+    this.singleTitle = document.getElementById("singleStreamTitle");
     this.btnBack = document.getElementById("btnBackToGrid");
 
     this.cameras = [
-      { id: "cam_01", name: "PERIMETER GATE" },
-      { id: "cam_02", name: "CHECKPOINT NORTH" },
-      { id: "cam_03", name: "FENCE EAST" },
-      { id: "cam_04", name: "ROAD SOUTH" },
-      { id: "cam_05", name: "DEPOT ACCESS" },
-      { id: "cam_06", name: "WATCHTOWER 3" },
+      { id: "cam_01", name: "Perimeter Gate" },
+      { id: "cam_02", name: "Checkpoint North" },
+      { id: "cam_03", name: "Fence East" },
+      { id: "cam_04", name: "Road South" },
+      { id: "cam_05", name: "Depot Access" },
+      { id: "cam_06", name: "Watchtower 3" },
     ];
 
     this.cameraAlerts = {}; // cam_01 -> { sev, text, timer }
@@ -36,37 +36,45 @@ class CameraGridController {
 
     this.gridContainer.innerHTML = this.cameras
       .map((cam) => {
+        const num = cam.id.replace("cam_", "");
         const activeAlert = this.cameraAlerts[cam.id];
-        const tileClass = activeAlert
-          ? activeAlert.sev === "CRITICAL"
-            ? "cam-tile tile-critical"
-            : "cam-tile tile-warning"
-          : "cam-tile";
+        
+        let alertClass = "";
+        if (activeAlert) {
+          alertClass = activeAlert.sev === "CRITICAL" ? "alert-critical" : "alert-warning";
+        }
 
         return `
-          <div class="${tileClass}" id="tile-${cam.id}" onclick="window.cameraGrid.openSingleView('${cam.id}')">
-            <div class="cam-tile-header">
-              <span class="cam-id-name">CAM ${cam.id.replace("cam_", "")} — ${cam.name}</span>
-              <div class="cam-status-box">
-                <span class="status-indicator online" id="dot-${cam.id}"></span>
-                <span>LIVE</span>
+          <div class="cam-tile ${alertClass}" id="tile-${cam.id}" onclick="window.cameraGrid.openSingleView('${cam.id}')">
+            <div class="cam-tile-head">
+              <div class="cam-title-left">
+                <span class="cam-status-dot"></span>
+                <span class="cam-name-text">CAM ${num} &nbsp;${cam.name}</span>
               </div>
+              <button class="cam-opts-btn" onclick="event.stopPropagation(); window.zoneEditor.open('${cam.id}')">&#8942;</button>
             </div>
-            <div class="cam-stream-wrapper">
+            
+            <div class="cam-video-box">
               <img 
-                class="stream-video-img" 
-                id="stream-${cam.id}" 
+                class="cam-feed-img" 
+                id="feed-${cam.id}" 
                 src="/api/stream/${cam.id}" 
                 alt="${cam.name}" 
                 loading="lazy" 
               />
-              ${
-                activeAlert
-                  ? `<div class="cam-event-banner sev-${activeAlert.sev.toLowerCase()}">
-                       <span>${activeAlert.sev === "CRITICAL" ? "🚨" : "⚠"} ${activeAlert.text}</span>
-                     </div>`
-                  : ""
-              }
+              <div class="cam-tile-bottom">
+                <div class="cam-live-indicator">
+                  <span class="cam-live-dot"></span>
+                  <span>LIVE</span>
+                </div>
+                ${
+                  activeAlert
+                    ? `<div class="cam-alert-pill ${activeAlert.sev === "CRITICAL" ? "critical" : "warning"}">
+                         <span>&#9888; ${activeAlert.text}</span>
+                       </div>`
+                    : ""
+                }
+              </div>
             </div>
           </div>
         `;
@@ -75,7 +83,7 @@ class CameraGridController {
   }
 
   openSingleView(cameraId) {
-    const cam = this.cameras.find((c) => c.id === cameraId) || { id: cameraId, name: "CAMERA" };
+    const cam = this.cameras.find((c) => c.id === cameraId) || { id: cameraId, name: "Camera" };
     if (!this.singleView || !this.gridContainer) return;
 
     this.gridContainer.classList.add("hidden");
@@ -108,7 +116,7 @@ class CameraGridController {
     const timer = setTimeout(() => {
       delete this.cameraAlerts[cameraId];
       this.render();
-    }, 8000);
+    }, 10000);
 
     this.cameraAlerts[cameraId] = { sev: severity, text: text, timer: timer };
     this.render();

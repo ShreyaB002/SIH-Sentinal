@@ -1,5 +1,5 @@
 ﻿/**
- * app.js — Master Application Controller for IBVAP Border Surveillance Console.
+ * app.js — Master Application Controller & Navigation for IBVAP Console.
  */
 
 class AppController {
@@ -7,11 +7,11 @@ class AppController {
     this.activeTab = "live";
     this.initNavigation();
     this.initClock();
-    this.initSystemStatus();
+    this.initSystemHealth();
   }
 
   initNavigation() {
-    document.querySelectorAll(".nav-tab").forEach((btn) => {
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         const targetTab = e.currentTarget.getAttribute("data-tab");
         this.switchTab(targetTab);
@@ -22,8 +22,8 @@ class AppController {
   switchTab(tabName) {
     this.activeTab = tabName;
 
-    // Update Nav Tabs
-    document.querySelectorAll(".nav-tab").forEach((btn) => {
+    // Update Nav Buttons
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
       if (btn.getAttribute("data-tab") === tabName) {
         btn.classList.add("active");
       } else {
@@ -40,16 +40,15 @@ class AppController {
       }
     });
 
-    // If switching to cameras or events, trigger render
-    if (tabName === "cameras" && window.camerasManager) {
+    if (tabName === "system" && window.camerasManager) {
       window.camerasManager.render();
     } else if (tabName === "events" && window.eventLog) {
-      window.eventLog.render();
+      window.eventLog.renderEventsTable();
     }
   }
 
   initClock() {
-    const clockElem = document.getElementById("consoleClock");
+    const clockElem = document.getElementById("systemClock");
     const update = () => {
       if (clockElem) {
         const d = new Date();
@@ -60,27 +59,21 @@ class AppController {
     update();
   }
 
-  async initSystemStatus() {
-    const statusElem = document.getElementById("sysStatus");
+  async initSystemHealth() {
+    const statusText = document.querySelector(".sys-status-text");
     const check = async () => {
       try {
         const res = await fetch("/api/cameras");
-        if (res.ok) {
-          if (statusElem) {
-            statusElem.innerHTML = `<span class="status-indicator online"></span> SYSTEM ONLINE`;
-          }
-        } else {
-          if (statusElem) {
-            statusElem.innerHTML = `<span class="status-indicator offline"></span> SYSTEM OFFLINE`;
-          }
+        if (res.ok && statusText) {
+          statusText.textContent = "SYSTEM ONLINE";
         }
       } catch (e) {
-        if (statusElem) {
-          statusElem.innerHTML = `<span class="status-indicator offline"></span> SYSTEM OFFLINE`;
+        if (statusText) {
+          statusText.textContent = "SYSTEM OFFLINE";
         }
       }
     };
-    setInterval(check, 5000);
+    setInterval(check, 8000);
     check();
   }
 }

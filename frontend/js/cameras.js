@@ -4,7 +4,7 @@
 
 class CamerasManagementController {
   constructor() {
-    this.gridList = document.getElementById("camerasGridList");
+    this.gridList = document.getElementById("systemCamerasGrid");
     this.btnWatchlist = document.getElementById("btnOpenWatchlistModal");
     this.btnANPR = document.getElementById("btnOpenANPRModal");
 
@@ -39,17 +39,19 @@ class CamerasManagementController {
     this.gridList.innerHTML = this.cameras
       .map((cam) => {
         return `
-          <div class="camera-card">
-            <div class="cam-card-head">
-              <span class="cam-card-title">CAM ${cam.id.replace("cam_", "")} — ${cam.name}</span>
-              <span class="status-indicator online"></span>
+          <div class="system-cam-card">
+            <div class="system-cam-card-head">
+              <span style="font-weight:800;font-size:12.5px;">CAM ${cam.id.replace("cam_", "")} — ${cam.name}</span>
+              <div style="display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:var(--green);">
+                <span class="cam-status-dot"></span> ONLINE
+              </div>
             </div>
             <div style="font-size:11px;color:var(--text-sec);">
-              Source: ${cam.type} &bull; Status: <strong style="color:var(--status-online)">ONLINE</strong>
+              Source: ${cam.type} &bull; Stream Protocol: MJPEG / RTSP
             </div>
-            <div class="cam-card-actions">
-              <button class="btn-console" onclick="window.camerasManager.openFeed('${cam.id}')">VIEW FEED</button>
-              <button class="btn-console" onclick="window.zoneEditor.open('${cam.id}')">&#9998; CONFIGURE ZONES</button>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button class="btn-clean" onclick="window.camerasManager.openFeed('${cam.id}')">VIEW FEED</button>
+              <button class="btn-clean" onclick="window.zoneEditor.open('${cam.id}')">&#9998; CONFIGURE ZONES</button>
             </div>
           </div>
         `;
