@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --color-app-bg: #0F172A; /* Deep slate background */
-  --color-content-bg: #0F172A;
-  --color-header-bg: #0F172A;
+  --color-app-bg: #090e17; /* Very dark slate for C2 */
+  --color-content-bg: #090e17;
+  --color-header-bg: #090e17;
   
   --color-nav-bg: #1E293B; 
   --color-nav-hover: #334155;

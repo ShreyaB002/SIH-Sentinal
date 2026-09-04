@@ -33,7 +33,7 @@ export const metadata = {
   ],
 };
 
-import Sidebar from "@/components/Sidebar";
+
 
 export default function RootLayout({ children }) {
   return (
@@ -42,8 +42,7 @@ export default function RootLayout({ children }) {
       className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex h-full min-h-screen bg-app-bg font-sans text-text-primary">
-        <Sidebar />
-        <div className="flex-1 overflow-x-hidden">
+        <div className="flex-1 overflow-x-hidden flex flex-col h-screen">
           {children}
         </div>
       </body>
