@@ -35,27 +35,27 @@ CAMERAS: dict[str, dict] = {
     },
     "cam_02": {
         "name": "BOP Sector 2 (Border Road)",
-        "source": "data/videos/test_cctv.mp4",
+        "source": str(VIDEO_DIR / "test_video.mp4"),
         "type": "file",
     },
     "cam_03": {
         "name": "BOP Sector 3 (Check Post Alpha)",
-        "source": "data/videos/test_cctv.mp4",
+        "source": str(VIDEO_DIR / "test_video.mp4"),
         "type": "file",
     },
     "cam_04": {
         "name": "BOP Sector 4 (Fence Line)",
-        "source": "data/videos/test_cctv.mp4",
+        "source": str(VIDEO_DIR / "test_video.mp4"),
         "type": "file",
     },
     "cam_05": {
         "name": "Check Post Bravo (Ingress)",
-        "source": "data/videos/test_cctv.mp4",
+        "source": str(VIDEO_DIR / "test_video.mp4"),
         "type": "file",
     },
     "cam_06": {
         "name": "BOP Sector 6 (Watchtower)",
-        "source": "data/videos/test_cctv.mp4",
+        "source": str(VIDEO_DIR / "test_video.mp4"),
         "type": "file",
     },
 }
