@@ -16,6 +16,7 @@ Guarantees:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -26,6 +27,8 @@ import numpy as np
 from backend.core.model_manager import ModelCategory, ModelManager
 
 logger = logging.getLogger(__name__)
+
+_CCTV_TRACKER_CFG = str(Path(__file__).resolve().parent / "bytetrack_cctv.yaml")
 
 
 @dataclass
@@ -242,10 +245,11 @@ class YOLO26Detector(BaseDetector):
         self,
         frame: np.ndarray,
         camera_id: str = "",
-        tracker_cfg: str = "bytetrack.yaml",
+        tracker_cfg: Optional[str] = None,
         persist: bool = True,
     ) -> List[TrackedDetection]:
         """Execute detection and ByteTrack tracking in a single GPU forward pass."""
+        actual_cfg = tracker_cfg or _CCTV_TRACKER_CFG
         try:
             model = self._get_model()
             try:
@@ -254,7 +258,7 @@ class YOLO26Detector(BaseDetector):
                     conf=self._confidence,
                     classes=self._class_ids,
                     device=self._resolved_device,
-                    tracker=tracker_cfg,
+                    tracker=actual_cfg,
                     persist=persist,
                     verbose=False,
                 )
