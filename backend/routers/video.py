@@ -230,9 +230,9 @@ async def get_plates(request: Request) -> JSONResponse:
     try:
         manager = request.app.state.stream_manager
         # Fetch from database if available
-        from backend.config import EVENTS_DB_PATH
+        from backend.config import DB_PATH
         from backend.core.database import Database
-        db = Database(EVENTS_DB_PATH)
+        db = Database(DB_PATH)
         records = db.query(event_type="PLATE", limit=100)
         plates = [
             {

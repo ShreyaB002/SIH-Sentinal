@@ -15,7 +15,13 @@ import threading
 from datetime import datetime, timezone
 from typing import Optional
 
-from backend.config import EVENT_COOLDOWN, ACTIVITY_COOLDOWN, CAMERAS
+from backend.config import (
+    ACTIVITY_COOLDOWN,
+    CAMERAS,
+    EVENT_COOLDOWN,
+    INTRUSION_MIN_CONFIDENCE,
+    WEAPONS_ALERT_CONFIDENCE,
+)
 from backend.core.database import Database
 from backend.core.fence import FenceEvent
 
@@ -66,6 +72,15 @@ class EventManager:
         """Handle fence intrusion events (called from camera threads)."""
         now = time.monotonic()
         for ev in events:
+            if ev.confidence < INTRUSION_MIN_CONFIDENCE:
+                logger.debug(
+                    "Suppressing low-confidence intrusion [%s] %s conf=%.2f zone=%s",
+                    ev.camera_id,
+                    ev.label,
+                    ev.confidence,
+                    ev.zone_name,
+                )
+                continue
             key = ("INTRUSION", ev.camera_id, ev.track_id, ev.zone_name)
             if not self._check_cooldown(key, now, EVENT_COOLDOWN):
                 continue
@@ -88,6 +103,14 @@ class EventManager:
 
     def receive_weapon(self, camera_id: str, weapon) -> None:
         """Handle a weapon detection event."""
+        if weapon.confidence < WEAPONS_ALERT_CONFIDENCE:
+            logger.debug(
+                "Suppressing low-confidence weapon [%s] %s conf=%.2f",
+                camera_id,
+                weapon.label,
+                weapon.confidence,
+            )
+            return
         now = time.monotonic()
         key = ("WEAPON", camera_id, weapon.label, str(weapon.bbox))
         if not self._check_cooldown(key, now, EVENT_COOLDOWN):

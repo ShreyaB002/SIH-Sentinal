@@ -96,6 +96,9 @@ class StreamManager:
     def get_stream(self, camera_id: str) -> Optional[CameraStream]:
         return self._streams.get(camera_id)
 
+    def get_streams(self) -> list[CameraStream]:
+        return list(self._streams.values())
+
     def get_frame(self, camera_id: str) -> Optional[np.ndarray]:
         stream = self.get_stream(camera_id)
         return stream.get_frame() if stream else None

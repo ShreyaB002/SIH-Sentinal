@@ -2,6 +2,7 @@
 test_phase10_behavior.py ? Unit Tests for Phase 10 (Behavior Analytics & Virtual Fence).
 """
 
+import asyncio
 import sys
 import time
 import unittest
@@ -11,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from backend.core.activity import ActivityAnalyzer, ActivityEvent
+from backend.core.event_manager import EventManager
 from backend.core.fence import VirtualFence, FenceEvent
 from backend.core.tracker import TrackedObject
 
@@ -95,6 +97,31 @@ class TestBehaviorAnalytics(unittest.TestCase):
         crowd_evts = [e for e in events if e.event_type == "CROWD"]
         self.assertEqual(len(crowd_evts), 1)
         self.assertEqual(crowd_evts[0].crowd_count, 3)
+
+    def test_low_confidence_intrusion_is_ignored(self):
+        class DummyDB:
+            def __init__(self):
+                self.calls = []
+
+            def insert_event(self, **kwargs):
+                self.calls.append(kwargs)
+                return 1
+
+        db = DummyDB()
+        manager = EventManager(db, loop=asyncio.new_event_loop())
+
+        event = FenceEvent(
+            camera_id="cam_01",
+            zone_name="Restricted Zone",
+            track_id=99,
+            label="Person",
+            confidence=0.12,
+            bbox=(120, 120, 180, 180),
+            centroid=(150, 150),
+        )
+
+        manager.receive([event])
+        self.assertEqual(db.calls, [])
 
 
 if __name__ == "__main__":
