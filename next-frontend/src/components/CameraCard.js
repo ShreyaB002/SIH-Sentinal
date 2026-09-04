@@ -2,24 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Maximize, Focus, Camera as CameraIcon, ShieldOff } from "lucide-react";
 
-export default function CameraCard({ camera, apiUrl }) {
+export default function CameraCard({ camera, apiUrl, isSelected, onSelect }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const online = camera.status === "ONLINE";
   const connecting = camera.status === "CONNECTING";
-
-  const statusColor = online
-    ? "bg-emerald-500"
-    : connecting
-      ? "bg-amber-400"
-      : "bg-red-500";
-
-  const statusTextColor = online
-    ? "text-emerald-400"
-    : connecting
-      ? "text-amber-400"
-      : "text-red-400";
 
   // Close fullscreen with Escape
   useEffect(() => {
@@ -28,364 +17,101 @@ export default function CameraCard({ camera, apiUrl }) {
         setIsFullscreen(false);
       }
     }
-
     if (isFullscreen) {
-      document.addEventListener(
-        "keydown",
-        handleKeyDown
-      );
-
+      document.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
     }
-
     return () => {
-      document.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
-
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
   }, [isFullscreen]);
 
   return (
     <>
-      {/* =====================================================
-          CAMERA CARD
-      ====================================================== */}
-
       <motion.button
         type="button"
-        onClick={() => setIsFullscreen(true)}
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{
-          duration: 0.4,
-          ease: "easeOut",
-        }}
-        whileHover={{ y: -3 }}
-        whileTap={{ scale: 0.995 }}
-        className="
-          group
-          relative
-          w-full
-          overflow-hidden
-          rounded-2xl
-          border
-          border-zinc-800/80
-          bg-zinc-950
-          text-left
-          shadow-lg
-          shadow-black/20
-          transition
-          duration-300
-          hover:border-zinc-700
-          hover:shadow-2xl
-          hover:shadow-black/40
-          focus:outline-none
-          focus:ring-2
-          focus:ring-zinc-600
-        "
+        onClick={onSelect}
+        className={`
+          group relative w-full aspect-video overflow-hidden rounded-lg bg-card-bg text-left focus:outline-none
+          shadow-[0_4px_24px_rgba(0,0,0,0.2)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-300
+          border border-border/20 ${isSelected ? "ring-1 ring-border-selected" : ""}
+        `}
       >
-        {/* =================================================
-            VIDEO
-        ================================================== */}
-
-        <div className="relative aspect-video overflow-hidden bg-zinc-950">
-
+        {/* Main Video Area */}
+        <div className="absolute inset-0 bg-video-canvas">
           {online || connecting ? (
-            <motion.img
+            <img
               src={`${apiUrl}/api/stream/${camera.id}`}
-              alt={`${camera.name} live feed`}
-              className="
-                h-full
-                w-full
-                object-cover
-                transition-transform
-                duration-700
-                ease-out
-                group-hover:scale-[1.025]
-              "
+              alt={`${camera.name} feed`}
+              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             />
           ) : (
-            /* Offline state */
-            <div className="flex h-full items-center justify-center bg-zinc-950">
-
-              <div className="text-center">
-
-                <motion.div
-                  animate={{
-                    opacity: [0.35, 0.7, 0.35],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  className="
-                    mx-auto
-                    mb-3
-                    flex
-                    h-12
-                    w-12
-                    items-center
-                    justify-center
-                    rounded-full
-                    border
-                    border-zinc-800
-                    bg-zinc-900
-                  "
-                >
-                  <span className="text-lg text-zinc-600">
-                    ◌
-                  </span>
-                </motion.div>
-
-                <p className="text-xs font-semibold tracking-wider text-zinc-500">
-                  CAMERA OFFLINE
-                </p>
-
-                <p className="mt-1 text-[10px] text-zinc-700">
-                  No video signal
-                </p>
-
+            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-950">
+              <div className="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPHBhdGggZD0iTTAgMEw4IDhaTTAgOEw4IDBaIiBzdHJva2U9IiMwMDAiIHN0cm9rZS1vcGFjaXR5PSIwLjEiLz4KPC9zdmc+')] mix-blend-overlay"></div>
+              <div className="relative text-center flex flex-col items-center">
+                <ShieldOff size={42} className="mb-4 text-text-muted opacity-40 stroke-[1.5]" />
+                <p className="text-[13px] font-semibold tracking-wide text-text-muted uppercase">Camera Feed Offline</p>
+                <p className="mt-1 text-[11px] text-text-muted/60 font-medium">Link terminated</p>
               </div>
             </div>
           )}
+        </div>
 
-          {/* =================================================
-              TOP GRADIENT
-          ================================================== */}
+        {/* Overlay Content */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/30 pointer-events-none" />
 
-          <div className="
-            pointer-events-none
-            absolute
-            inset-x-0
-            top-0
-            h-24
-            bg-gradient-to-b
-            from-black/70
-            to-transparent
-          " />
-
-          {/* =================================================
-              CAMERA NAME
-          ================================================== */}
-
-          <div className="
-            absolute
-            left-3
-            top-3
-            flex
-            items-center
-            gap-2
-            rounded-lg
-            border
-            border-white/10
-            bg-black/60
-            px-3
-            py-2
-            backdrop-blur-md
-          ">
-
-            <span className="text-xs font-semibold text-white">
+        {/* Top Header Information */}
+        <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-4 pointer-events-none">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-[13px] font-semibold tracking-wide text-white drop-shadow-md">
               {camera.name}
+            </h2>
+            <div className="flex items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-green-healthy shadow-[0_0_8px_rgba(16,185,129,0.5)]" : connecting ? "bg-amber-warning" : "bg-text-muted"} ${online ? "animate-pulse" : ""}`} />
+              <span className="text-[10px] font-medium text-white/70 uppercase tracking-widest drop-shadow-sm">
+                {camera.status}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="font-mono text-[11px] font-medium text-white/60 drop-shadow-sm">
+              30 FPS
             </span>
-
           </div>
-
-          {/* =================================================
-              LIVE BADGE
-          ================================================== */}
-
-          {online && (
-            <div className="
-              absolute
-              right-3
-              top-3
-              flex
-              items-center
-              gap-1.5
-              rounded-lg
-              border
-              border-emerald-500/20
-              bg-black/60
-              px-2.5
-              py-1.5
-              backdrop-blur-md
-            ">
-
-              <motion.span
-                animate={{
-                  opacity: [1, 0.35, 1],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                }}
-                className="h-1.5 w-1.5 rounded-full bg-emerald-400"
-              />
-
-              <span className="text-[9px] font-semibold tracking-widest text-emerald-400">
-                LIVE
-              </span>
-
-            </div>
-          )}
-
-          {connecting && (
-            <div className="
-              absolute
-              right-3
-              top-3
-              flex
-              items-center
-              gap-1.5
-              rounded-lg
-              border
-              border-amber-500/20
-              bg-black/60
-              px-2.5
-              py-1.5
-              backdrop-blur-md
-            ">
-
-              <motion.span
-                animate={{
-                  opacity: [1, 0.3, 1],
-                }}
-                transition={{
-                  duration: 1,
-                  repeat: Infinity,
-                }}
-                className="h-1.5 w-1.5 rounded-full bg-amber-400"
-              />
-
-              <span className="text-[9px] font-semibold tracking-widest text-amber-400">
-                CONNECTING
-              </span>
-
-            </div>
-          )}
-
-          {/* =================================================
-              HOVER EXPAND
-          ================================================== */}
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileHover={{ opacity: 1 }}
-            className="
-              pointer-events-none
-              absolute
-              inset-0
-              flex
-              items-center
-              justify-center
-              bg-black/10
-            "
-          >
-            <div className="
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-xl
-              border
-              border-white/15
-              bg-black/60
-              text-lg
-              text-white
-              shadow-xl
-              backdrop-blur-md
-            ">
-              ⛶
-            </div>
-          </motion.div>
-
         </div>
 
-        {/* =================================================
-            STATUS BAR
-        ================================================== */}
-
-        <div className="
-          flex
-          items-center
-          gap-3
-          border-t
-          border-zinc-800/80
-          bg-zinc-950
-          px-4
-          py-3
-        ">
-
-          {/* Status indicator */}
-
-          <div className="relative flex h-2 w-2 items-center justify-center">
-
-            {online && (
-              <motion.span
-                animate={{
-                  scale: [1, 1.8, 1],
-                  opacity: [0.5, 0, 0.5],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                }}
-                className={`absolute h-2 w-2 rounded-full ${statusColor}`}
-              />
-            )}
-
-            <span
-              className={`relative h-1.5 w-1.5 rounded-full ${statusColor}`}
-            />
-
-          </div>
-
-          {/* Status */}
-
-          <span
-            className={`text-[10px] font-semibold tracking-wider ${statusTextColor}`}
+        {/* Bottom Actions Bar (Hover) */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileHover={{ opacity: 1, y: 0 }}
+          className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 backdrop-blur-md opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            onClick={() => setIsFullscreen(true)}
+            className="rounded p-1.5 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+            title="Fullscreen"
           >
-            {camera.status}
-          </span>
-
-          {/* Divider */}
-
-          <span className="h-3 w-px bg-zinc-800" />
-
-          {/* Camera ID */}
-
-          <span className="font-mono text-[10px] text-zinc-600">
-            {camera.id}
-          </span>
-
-          {/* Expand text */}
-
-          <span className="
-            ml-auto
-            text-[9px]
-            font-medium
-            uppercase
-            tracking-wider
-            text-zinc-700
-            transition
-            group-hover:text-zinc-400
-          ">
-            View
-          </span>
-
-        </div>
-
+            <Maximize size={14} />
+          </button>
+          <button 
+            onClick={onSelect}
+            className="rounded p-1.5 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+            title="Focus feed"
+          >
+            <Focus size={14} />
+          </button>
+          <button 
+            className="rounded p-1.5 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+            title="Snapshot"
+          >
+            <CameraIcon size={14} />
+          </button>
+        </motion.div>
       </motion.button>
 
-      {/* =====================================================
-          FULLSCREEN MODAL
-      ====================================================== */}
-
+      {/* Fullscreen Modal */}
       <AnimatePresence>
         {isFullscreen && (
           <motion.div
@@ -393,286 +119,37 @@ export default function CameraCard({ camera, apiUrl }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="
-              fixed
-              inset-0
-              z-[100]
-              flex
-              items-center
-              justify-center
-              bg-black/90
-              p-3
-              backdrop-blur-xl
-              sm:p-6
-            "
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-app-bg/95 p-6 backdrop-blur-md"
             onClick={() => setIsFullscreen(false)}
           >
-
-            {/* Fullscreen container */}
-
-            <motion.div
-              initial={{
-                opacity: 0,
-                scale: 0.96,
-                y: 10,
-              }}
-              animate={{
-                opacity: 1,
-                scale: 1,
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                scale: 0.96,
-                y: 10,
-              }}
-              transition={{
-                duration: 0.25,
-                ease: "easeOut",
-              }}
-              onClick={(event) =>
-                event.stopPropagation()
-              }
-              className="
-                relative
-                flex
-                h-full
-                w-full
-                flex-col
-                overflow-hidden
-                rounded-2xl
-                border
-                border-zinc-800
-                bg-zinc-950
-                shadow-2xl
-              "
+            <div 
+              className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-video-canvas shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
             >
-
-              {/* ==========================================
-                  FULLSCREEN HEADER
-              =========================================== */}
-
-              <div className="
-                flex
-                items-center
-                justify-between
-                border-b
-                border-zinc-800
-                bg-zinc-950/95
-                px-4
-                py-3
-                sm:px-5
-                sm:py-4
-              ">
-
-                <div className="flex items-center gap-3">
-
-                  <div className="relative flex h-2 w-2">
-
-                    {online && (
-                      <motion.span
-                        animate={{
-                          scale: [1, 2, 1],
-                          opacity: [0.6, 0, 0.6],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                        }}
-                        className={`absolute h-2 w-2 rounded-full ${statusColor}`}
-                      />
-                    )}
-
-                    <span
-                      className={`relative h-2 w-2 rounded-full ${statusColor}`}
-                    />
-
-                  </div>
-
-                  <div>
-
-                    <h2 className="
-                      text-sm
-                      font-semibold
-                      text-white
-                    ">
-                      {camera.name}
-                    </h2>
-
-                    <div className="
-                      mt-0.5
-                      flex
-                      items-center
-                      gap-2
-                    ">
-
-                      <span className="font-mono text-[10px] text-zinc-600">
-                        {camera.id}
-                      </span>
-
-                      <span className="text-zinc-800">
-                        /
-                      </span>
-
-                      <span
-                        className={`text-[10px] font-medium ${statusTextColor}`}
-                      >
-                        {camera.status}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-                {/* Close */}
-
+              <div className="absolute top-4 right-4 z-10">
                 <button
-                  type="button"
-                  onClick={() =>
-                    setIsFullscreen(false)
-                  }
-                  className="
-                    flex
-                    h-9
-                    w-9
-                    items-center
-                    justify-center
-                    rounded-xl
-                    border
-                    border-zinc-800
-                    bg-zinc-900/50
-                    text-lg
-                    text-zinc-500
-                    transition
-                    hover:border-zinc-600
-                    hover:bg-zinc-900
-                    hover:text-white
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-zinc-700
-                  "
-                  aria-label="Close camera"
+                  onClick={() => setIsFullscreen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/50 text-white/70 backdrop-blur-md hover:bg-white/10 hover:text-white transition-colors border border-white/10"
                 >
-                  ×
+                  ✕
                 </button>
-
               </div>
-
-              {/* ==========================================
-                  FULLSCREEN VIDEO
-              =========================================== */}
-
-              <div className="
-                relative
-                flex
-                min-h-0
-                flex-1
-                items-center
-                justify-center
-                overflow-hidden
-                bg-black
-              ">
-
+              
+              <div className="relative flex flex-1 items-center justify-center bg-black overflow-hidden">
                 {online || connecting ? (
                   <img
                     src={`${apiUrl}/api/stream/${camera.id}`}
                     alt={`${camera.name} live feed`}
-                    className="
-                      max-h-full
-                      max-w-full
-                      object-contain
-                    "
+                    className="max-h-full max-w-full object-contain"
                   />
                 ) : (
-                  <div className="text-center">
-
-                    <div className="
-                      mx-auto
-                      mb-4
-                      flex
-                      h-14
-                      w-14
-                      items-center
-                      justify-center
-                      rounded-full
-                      border
-                      border-zinc-800
-                      bg-zinc-950
-                    ">
-                      <span className="text-zinc-600">
-                        ◌
-                      </span>
-                    </div>
-
-                    <p className="
-                      text-sm
-                      font-semibold
-                      tracking-wide
-                      text-zinc-500
-                    ">
-                      CAMERA OFFLINE
-                    </p>
-
-                    <p className="
-                      mt-1
-                      font-mono
-                      text-[10px]
-                      text-zinc-700
-                    ">
-                      {camera.id}
-                    </p>
-
+                  <div className="flex flex-col items-center justify-center h-full w-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-950">
+                    <ShieldOff size={64} className="mb-4 text-text-muted opacity-40 stroke-[1]" />
+                    <p className="text-sm font-semibold tracking-widest text-text-muted uppercase">Camera Offline</p>
                   </div>
                 )}
-
-                {/* Live indicator inside video */}
-
-                {online && (
-                  <div className="
-                    absolute
-                    bottom-4
-                    left-4
-                    flex
-                    items-center
-                    gap-2
-                    rounded-lg
-                    border
-                    border-emerald-500/20
-                    bg-black/60
-                    px-3
-                    py-2
-                    backdrop-blur-md
-                  ">
-
-                    <motion.span
-                      animate={{
-                        opacity: [1, 0.3, 1],
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                      }}
-                      className="h-1.5 w-1.5 rounded-full bg-emerald-400"
-                    />
-
-                    <span className="
-                      text-[9px]
-                      font-semibold
-                      tracking-widest
-                      text-emerald-400
-                    ">
-                      LIVE FEED
-                    </span>
-
-                  </div>
-                )}
-
               </div>
-
-            </motion.div>
-
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
