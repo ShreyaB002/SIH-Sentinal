@@ -30,7 +30,7 @@ DB_PATH: Path = PROJECT_ROOT / "data" / "events.db"
 CAMERAS: dict[str, dict] = {
     "cam_01": {
         "name": "Phone Camera Feed",
-        "source": "http://172.20.10.2:8080/video",
+        "source": "http://192.168.1.15:8080/video",
         "type": "rtsp", # or "usb" depending on OpenCV stream handling
     },
     "cam_02": {
