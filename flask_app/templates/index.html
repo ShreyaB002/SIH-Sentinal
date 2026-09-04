@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Video Analytics Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Video Analytics Dashboard</h1>
+        </header>
+        
+        <main class="dashboard">
+            <div class="video-section">
+                <h2>Live Feeds (6 Cameras)</h2>
+                <div class="video-grid">
+                    {% for cam_id, source in cameras.items() %}
+                    <div class="video-wrapper">
+                        <div class="cam-label">{{ cam_id }}</div>
+                        <img src="{{ url_for('video_feed', cam_id=cam_id) }}" alt="Feed {{ cam_id }}">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="events-section">
+                <h2>Recent Events</h2>
+                <ul id="event-list">
+                    <li>Waiting for events...</li>
+                    <!-- Events populated via JavaScript or Jinja -->
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

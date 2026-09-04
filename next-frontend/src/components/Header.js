@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { Grid, Layout, Maximize, Cpu, HardDrive, ShieldCheck, Activity } from "lucide-react";
 
 export default function Header({
-  cameras = [],
   wsStatus = "CONNECTING",
+  layout = "2x3",
+  setLayout = () => {}
 }) {
   const [time, setTime] = useState("");
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-
       setTime(
-        now.toLocaleTimeString("en-IN", {
+        now.toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
@@ -22,199 +23,78 @@ export default function Header({
         })
       );
     };
-
     updateTime();
-
     const interval = setInterval(updateTime, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
-  const onlineCameras = cameras.filter(
-    (camera) => camera.status === "ONLINE"
-  ).length;
-
-  const totalCameras = cameras.length;
-
   const wsOnline = wsStatus === "ONLINE";
-  const wsConnecting = wsStatus === "CONNECTING";
 
   return (
-    <motion.header
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="mb-7"
-    >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
-        {/* Brand */}
-        <div className="flex items-center gap-4">
-
-          {/* Logo */}
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950"
-          >
-            <motion.div
-              animate={{
-                opacity: [0.4, 1, 0.4],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-              }}
-              className={`h-3 w-3 rounded-full ${
-                wsOnline
-                  ? "bg-emerald-400"
-                  : wsConnecting
-                    ? "bg-amber-400"
-                    : "bg-red-400"
-              }`}
-            />
-
-            {wsOnline && (
-              <motion.div
-                animate={{
-                  scale: [1, 1.5, 1],
-                  opacity: [0.4, 0, 0.4],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                }}
-                className="absolute h-6 w-6 rounded-full border border-emerald-500/30"
-              />
-            )}
-          </motion.div>
-
-          {/* Title */}
-          <div>
-            <div className="flex items-center gap-3">
-
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                IBVAP
-              </h1>
-
-              {/* LIVE indicator */}
-              <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1">
-                <motion.span
-                  animate={{
-                    opacity: [1, 0.3, 1],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                  }}
-                  className="h-1.5 w-1.5 rounded-full bg-emerald-400"
-                />
-
-                <span className="text-[9px] font-semibold tracking-[0.15em] text-emerald-400">
-                  LIVE
-                </span>
-              </div>
-
+    <header className="sticky top-0 z-40 bg-app-bg border-b border-border/50">
+      <div className="flex h-14 items-center justify-between px-6">
+        
+        {/* Left: Branding & Status */}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-semibold tracking-wider text-text-primary uppercase flex items-center gap-2">
+              <ShieldCheck size={16} className="text-primary" />
+              Sentinel OS
+            </h1>
+            <div className="h-4 w-px bg-border/50" />
+            <div className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${wsOnline ? "bg-green-healthy shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-warning"} animate-pulse`} />
+              <span className="text-[11px] font-medium tracking-wide text-text-muted uppercase">
+                {wsOnline ? "Encrypted Link Active" : "Establishing..."}
+              </span>
             </div>
-
-            <p className="mt-1 text-xs text-zinc-500">
-              Intelligent Border Video Analytics Platform
-            </p>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="flex flex-wrap items-center gap-2">
-
-          {/* Cameras */}
-          <motion.div
-            whileHover={{ y: -2 }}
-            className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3"
+        {/* Center: Layout Controls (Borderless Button Group) */}
+        <div className="flex items-center gap-1 bg-nav-bg/50 rounded-lg p-1">
+          <button 
+            onClick={() => setLayout("2x3")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${layout === "2x3" ? "bg-nav-hover text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            </div>
-
-            <div>
-              <p className="text-[9px] uppercase tracking-widest text-zinc-600">
-                Cameras
-              </p>
-
-              <p className="mt-0.5 text-xs font-semibold text-zinc-300">
-                {onlineCameras}
-                <span className="mx-1 text-zinc-700">/</span>
-                {totalCameras}
-
-                <span className="ml-1 font-normal text-zinc-600">
-                  online
-                </span>
-              </p>
-            </div>
-          </motion.div>
-
-          {/* WebSocket */}
-          <motion.div
-            whileHover={{ y: -2 }}
-            className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3"
+            <Grid size={14} /> 2x3 Matrix
+          </button>
+          <button 
+            onClick={() => setLayout("1+5")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${layout === "1+5" ? "bg-nav-hover text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
           >
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-lg ${
-                wsOnline
-                  ? "bg-emerald-500/10"
-                  : wsConnecting
-                    ? "bg-amber-500/10"
-                    : "bg-red-500/10"
-              }`}
-            >
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  wsOnline
-                    ? "bg-emerald-400"
-                    : wsConnecting
-                      ? "bg-amber-400"
-                      : "bg-red-400"
-                }`}
-              />
-            </div>
-
-            <div>
-              <p className="text-[9px] uppercase tracking-widest text-zinc-600">
-                Alerts
-              </p>
-
-              <p
-                className={`mt-0.5 text-xs font-semibold ${
-                  wsOnline
-                    ? "text-emerald-400"
-                    : wsConnecting
-                      ? "text-amber-400"
-                      : "text-red-400"
-                }`}
-              >
-                {wsOnline
-                  ? "CONNECTED"
-                  : wsConnecting
-                    ? "CONNECTING"
-                    : "OFFLINE"}
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Clock */}
-          <motion.div
-            whileHover={{ y: -2 }}
-            className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3"
+            <Layout size={14} /> 1+5 Focus
+          </button>
+          <button 
+            onClick={() => setLayout("1x1")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${layout === "1x1" ? "bg-nav-hover text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
           >
-            <p className="text-[9px] uppercase tracking-widest text-zinc-600">
-              Local Time
-            </p>
-
-            <p className="mt-0.5 font-mono text-sm font-medium tracking-wide text-zinc-300">
-              {time || "--:--:--"}
-            </p>
-          </motion.div>
-
+            <Maximize size={14} /> 1x1 Cinema
+          </button>
         </div>
+
+        {/* Right: Telemetry & Time */}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 text-[10px] uppercase font-medium tracking-wider text-text-muted">
+            <div className="flex items-center gap-1.5">
+              <Cpu size={12} className="text-text-secondary" /> RTX 2050
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Activity size={12} className="text-secondary" /> YOLO26M
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-healthy" /> AUDIO ON
+            </div>
+          </div>
+
+          <div className="h-4 w-px bg-border/50" />
+
+          <p className="font-mono text-[13px] text-text-secondary tracking-wider">
+            {time || "--:--:--"}
+          </p>
+        </div>
+        
       </div>
-    </motion.header>
+    </header>
   );
 }

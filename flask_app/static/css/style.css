@@ -1,0 +1,111 @@
+/* Reset & Base Styles */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #0f172a;
+    color: #f8fafc;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #1e293b;
+}
+
+header h1 {
+    font-size: 24px;
+    margin: 0;
+    color: #e2e8f0;
+}
+
+/* Layout */
+.dashboard {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+}
+
+@media (max-width: 800px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Video Section */
+.video-section h2, .events-section h2 {
+    font-size: 18px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #94a3b8;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 columns */
+    gap: 15px;
+}
+
+.video-wrapper {
+    position: relative;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    border: 1px solid #334155;
+}
+
+.cam-label {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 10;
+}
+
+.video-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Events Section */
+.events-section {
+    background-color: #1e293b;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #334155;
+    height: 100%;
+}
+
+#event-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#event-list li {
+    padding: 12px;
+    border-bottom: 1px solid #334155;
+    font-size: 14px;
+}
+
+#event-list li:last-child {
+    border-bottom: none;
+}
